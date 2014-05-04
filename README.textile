@@ -1,0 +1,52 @@
+v0.2.1(2014年4月29日)
+修改了输出的json格式化，更加易读和简单。
+输出如下：
+    {"took":293,"total":1,"fields":["postDate","mm","_count"],"rows":[["1258294332000","3","3"]]}
+新增job方式的访问
+    第一步：localhost:9200/_commandjob?q=<command>&from=0&size=50，返回{"jobid":"299450.5410349557"}
+    第二步：
+        localhost:9200/jobs/299450.5410349557/query, 使用jobid取查询结果
+        localhost:9200/jobs/299450.5410349557/report, 使用jobid取统计结果
+版本号的发布规定
+    当最后一个小版本号为奇数时，该版本为测试版，如v0.2.1
+    当最后一个小版本号为偶数时，该版本为稳定版，如v0.2.2
+
+v0.1.10(2014年4月25日)
+新增命令选项
+    Top和Stats均支持minicount选项
+    如：sourcetype=twitter | top minicount=3 user by pid
+    如：sourcetype=twitter | stats minicount=3 sum(upflow) by user
+
+V0.1.9 (2014年4月21日)
+新增命令
+    Sort(http://docs.splunk.com/Documentation/Splunk/6.0.3/SearchReference/Sort)
+    如：sourcetype=twitter | sort -user（-代表倒序，+代表正序）
+
+V0.1.6 (2014年4月15日)
+新增命令
+    Top(http://docs.splunk.com/Documentation/Splunk/6.0.2/SearchReference/Top)
+    如：sourcetype=twitter | top limit=10 user
+
+V0.1.5（2014年4月10日）
+新增命令
+	新增stats命令，如stats count,sum() by fieldlist，完整命令如： sourcetype=twitter | stats count,sum(post_number) by user
+	支持简单脚本计算，如： sourcetype=twitter | stats count,sum("doc['upflow'].value+doc['downflow'].value") by user,postDate
+
+V0.1.1 （2014年4月4日）
+新增命令
+    新增has_parent查询命令_command?q=hasparent=(sourcetype=<parentType> <logicalexpression>)
+    新增has_child查询命令_command?q=haschild=(sourcetype=<childType> <logicalexpression>)
+    新增基于入库时间戳结果过滤命令_command?q=starttime=<timeformat=yyyy-MM-dd HH:mm:ss> endtime=<timeformat=yyyy-MM-dd HH:mm:ss>
+
+新增查询参数
+    分页参数_command?from=<int>&size=<int>
+    导出模式参数_command?download=<true>
+
+新增command_head搜索UI
+    地址为_plugin/command_head
+
+
+V0.1.0 （2014年4月1日）
+新增命令模式进行查询
+    _command?q=<search>
+    <search>的语法可参考http://docs.splunk.com/Documentation/Splunk/6.0.2/SearchReference/Search
