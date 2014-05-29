@@ -360,7 +360,13 @@ void StatsStatement()        :{/*@bgen(jjtree) _Stats */
 {/*@bgen(jjtree) _Stats */
   try {
 /*@egen*/
-  <K_STATS> [<K_MINCOUNT><O_EQ><S_INTEGER>{jjtn000.mincount = Integer.parseInt(token.image);}]StatsFunction() ( <O_COMMA>StatsFunction() )* [ ByClause() ]/*@bgen(jjtree)*/
+  <K_STATS> 
+  [
+  <K_MINCOUNT> <O_EQ> <S_INTEGER>{jjtn000.mincount = Integer.parseInt(token.image);}
+  |
+  <K_LIMIT> <O_EQ> <S_INTEGER>  {jjtn000.limit = Integer.parseInt(token.image);}
+  ]
+  StatsFunction() ( <O_COMMA>StatsFunction() )* [ ByClause() ]/*@bgen(jjtree)*/
   } catch (Throwable jjte000) {
     if (jjtc000) {
       jjtree.clearNodeScope(jjtn000);

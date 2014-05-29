@@ -295,7 +295,13 @@ void RegexStatement() #_Regex:{}
 
 void StatsStatement() #_Stats:{}
 {
-  <K_STATS> [<K_MINCOUNT><O_EQ><S_INTEGER>{jjtThis.mincount = Integer.parseInt(token.image);}]StatsFunction() ( <O_COMMA>StatsFunction() )* [ ByClause() ]
+  <K_STATS> 
+  [
+  <K_MINCOUNT> <O_EQ> <S_INTEGER>{jjtThis.mincount = Integer.parseInt(token.image);}
+  |
+  <K_LIMIT> <O_EQ> <S_INTEGER>  {jjtThis.limit = Integer.parseInt(token.image);}
+  ]
+  StatsFunction() ( <O_COMMA>StatsFunction() )* [ ByClause() ]
 }
 
 void StatsFunction() #_StatsFunc:{}

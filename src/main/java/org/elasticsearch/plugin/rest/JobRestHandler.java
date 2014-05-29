@@ -32,6 +32,7 @@ import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.support.RestUtils;
 
 import com.everdata.command.CommandException;
+import com.everdata.command.ReportResponse;
 import com.everdata.command.Search;
 import com.everdata.parser.AST_Start;
 import com.everdata.parser.CommandParser;
@@ -45,12 +46,12 @@ public class JobRestHandler extends BaseRestHandler {
 	
 	Random ran = new Random();
 	
-	LoadingCache<String, Search> searchCache = CacheBuilder.newBuilder()
+	LoadingCache<String, String> commandCache = CacheBuilder.newBuilder()
 		       .maximumSize(200)
 		       .expireAfterAccess(20, TimeUnit.MINUTES)
 		       .build(
-		           new CacheLoader<String, Search>() {
-		             public Search load(String jobid) throws CommandException {
+		           new CacheLoader<String, String>() {
+		             public String load(String jobid) throws CommandException {
 		               throw new CommandException("不存在的jobid，确认有这个id吗？");
 		             }
 		           });
@@ -66,13 +67,24 @@ public class JobRestHandler extends BaseRestHandler {
 		             }
 		           });
 	
-	LoadingCache<String, SearchResponse> reportResultCache = CacheBuilder.newBuilder()
+	LoadingCache<String, ReportResponse> reportResultCache = CacheBuilder.newBuilder()
+		       .maximumSize(2000)
+		       .expireAfterAccess(20, TimeUnit.MINUTES)
+		       .build(
+		           new CacheLoader<String, ReportResponse>() {
+		             public ReportResponse load(String jobidWithFromSize) throws CommandException {
+		            	//fast failure mode	快速失败模式
+		               throw new CommandException("不存在的key，确认有这个id吗？");
+		             }
+		           });
+	
+	LoadingCache<String, SearchResponse> timelineResultCache = CacheBuilder.newBuilder()
 		       .maximumSize(2000)
 		       .expireAfterAccess(20, TimeUnit.MINUTES)
 		       .build(
 		           new CacheLoader<String, SearchResponse>() {
 		             public SearchResponse load(String jobidWithFromSize) throws CommandException {
-		            	//fast failure mode	快速失败模式
+		            	 //fast failure mode	快速失败模式
 		               throw new CommandException("不存在的key，确认有这个id吗？");
 		             }
 		           });
@@ -80,10 +92,24 @@ public class JobRestHandler extends BaseRestHandler {
 	private String genJobId(){
 		return Double.toString(ran.nextDouble() * 1000000);
 	}
-	
-	private String genRetId(String jobId, int from, int size){
-		return new StringBuffer(jobId).append("-").append(from).append("-").append(size).toString();
+	class Id{
+		private StringBuffer id = new StringBuffer();
+		
+		public Id append(String a){
+			id.append("-").append(a);
+			return this;
+		}
+		
+		public Id append(int a){
+			id.append("-").append(Integer.toString(a));
+			return this;
+		}
+		
+		public String toId(){
+			return id.toString();
+		}
 	}
+	
 	
 	@Inject
 	public JobRestHandler(Settings settings, Client client,
@@ -94,163 +120,216 @@ public class JobRestHandler extends BaseRestHandler {
 		controller.registerHandler(GET, "/jobs/{jobid}/{type}", this);
 		controller.registerHandler(GET, "/jobs/{jobid}/{type}", this);
 	}
+	
+	private String getCommandStringFromRestRequest(final RestRequest request) throws CommandException{
+		String command = "";
+		if(request.method() == RestRequest.Method.GET)
+			command = request.param("q", "");
+		else{
+			HashMap<String, String> post = new HashMap<String, String>();
+			RestUtils.decodeQueryString(request.content().toUtf8(), 0, post);
+			if(post.containsKey("q")){
+				command = post.get("q");
+			}
+		}
+		
+		if (command.length() == 0) {
+			throw new CommandException("命令为空");
+			
+		}else{
+			if( ! command.toLowerCase().startsWith("search"))
+				command = "search "+command;				
+		}
+		
+		logger.info(command);
+		
+		return command;
+	}
+	
+	private Search newSearchFromCommandString(String command) throws ParseException, CommandException{
+		CommandParser parser = new CommandParser(command);
+		
+		AST_Start.dumpWithLogger(logger, parser.getInnerTree(), "");
+		
+		return new Search(parser, client, logger);
+	}
 
 	@Override
 	public void handleRequest(final RestRequest request,
 			final RestChannel channel) {
-
+		
+		//根据查询命令生成jobid,存储原始的command命令到cache
 		if(request.param("jobid") == null ){
-
-			String command = "";
-			if(request.method() == RestRequest.Method.GET)
-				command = request.param("q", "");
-			else{
-				HashMap<String, String> post = new HashMap<String, String>();
-				RestUtils.decodeQueryString(request.content().toUtf8(), 0, post);
-				if(post.containsKey("q")){
-					command = post.get("q");
-				}
-			}
+			//command支持从GET和POST中获取
+			String command;
 			
-			if (command.length() == 0) {
-				SendFailure(request, channel, new CommandException("命令为空"));
-				return;
-			}else{
-				if( ! command.toLowerCase().startsWith("search"))
-					command = "search "+command;				
-			}
-	
-	
-	
-			Search search = null;
-	
 			try {
-				CommandParser parser = new CommandParser(command);
-				
-				if (logger.isDebugEnabled()) {
-					AST_Start.dumpWithLogger(logger, parser.getInnerTree(), "");
-				}
-	
-				search = new Search(parser, client, logger);
-				
+				command = getCommandStringFromRestRequest(request);
 	
 			} catch (CommandException e2) {
-				SendFailure(request, channel, e2);
-				return;
-			} catch (ParseException e1) {
-				SendFailure(request, channel, e1);
+				sendFailure(request, channel, e2);
 				return;
 			}
 			
 			String jobId = genJobId();
-			searchCache.put(jobId, search);
+			commandCache.put(jobId, command);
 			channel.sendResponse(new StringRestResponse(RestStatus.OK, "{\"jobid\":\"" + jobId +"\"}"));
-			return;
-		
+			return;		
 		}
 		
 		if(request.param("type") == null){
-			SendFailure(request, channel, new CommandException("report or query endpoint 需要提供"));
+			sendFailure(request, channel, new CommandException("report or query endpoint 需要提供"));
 			return;
 		}
 		String jobid = request.param("jobid");
 		String type = request.param("type");
 		final int from = request.paramAsInt("from", 0);
 		int size = request.paramAsInt("size", 50);
+		String sortField = request.param("sortField");
+		String interval = request.param("interval");
+		String timelineField = request.param("timelineField");
 		
+		Id id = new Id();
+		final String retId = id.append(jobid).append(sortField).append(interval).append(from)
+				.append(size).append(timelineField).toId();
 		
-		final Search search;
-		try {
-			search = searchCache.get(jobid);
-		} catch (ExecutionException e1) {
-			SendFailure(request, channel, e1);
-			return;
-		}
-		
-		final String retId = genRetId(jobid, from, size);
-		SearchResponse result = null;
 
 		if(type.equalsIgnoreCase("query")){
 			
 			try{
-				result = queryResultCache.get(retId);
-				sendQuery(from, search, request, channel, result);
+				SearchResponse cacheResult = queryResultCache.get(retId);
+				sendQuery(from, request, channel, cacheResult);
 			} catch (ExecutionException e) {
+				Search search;
+				try {
+					search = newSearchFromCommandString(commandCache.get(jobid));
+				} catch (Exception e1) {
+					sendFailure(request, channel, e1);
+					return;
+				}
+				
 				//快速失败模式，load key
+				
 				search.executeQuery(
 						new ActionListener<SearchResponse>() {
 							@Override
 							public void onResponse(SearchResponse response) {								
 								queryResultCache.put(retId, response);								
-								sendQuery(from, search, request, channel, response);
+								sendQuery(from, request, channel, response);
 							}
 	
 							@Override
 							public void onFailure(Throwable e) {
-								SendFailure(request, channel, e);
+								sendFailure(request, channel, e);
 							}
-						}, from, size);
+						}, from, size, sortField);
 			}
-				
-				
-				
-				
+	
 		}else if(type.equalsIgnoreCase("report")){
 			try{
-				result = reportResultCache.get(retId);
-				sendReport(from, search, request, channel, result);
+				ReportResponse cacheResult = reportResultCache.get(retId);
+				sendReport(from, request, channel, cacheResult);
 			} catch (ExecutionException e) {
+				Search search;
+				try {
+					search = newSearchFromCommandString(commandCache.get(jobid));
+				} catch (Exception e1) {
+					sendFailure(request, channel, e1);
+					return;
+				}
 				//快速失败模式，load key
+				final ReportResponse result =  new ReportResponse();
+				result.bucketFields = search.bucketFields;
+				
+				result.funcFields = search.funcFields;
+				
 				search.executeReport(
 						new ActionListener<SearchResponse>() {
 							@Override
 							public void onResponse(SearchResponse response) {
-								reportResultCache.put(retId, response);
-								sendReport(from, search, request, channel, response);
+								result.response = response;
+								reportResultCache.put(retId, result);
+								sendReport(from, request, channel, result);
 							}
 	
 							@Override
 							public void onFailure(Throwable e) {
-								SendFailure(request, channel, e);
+								sendFailure(request, channel, e);
 							}
 						}, from, size);
+			}
+		}else if(type.equalsIgnoreCase("timeline")){
+			try{
+				SearchResponse cacheResult = timelineResultCache.get(retId);
+				sendTimeline( request, channel, cacheResult);
+			} catch (ExecutionException e) {
+				Search search;
+				try {
+					search = newSearchFromCommandString(commandCache.get(jobid));
+				} catch (Exception e1) {
+					sendFailure(request, channel, e1);
+					return;
+				}
+				//快速失败模式，load key
+								
+				search.executeTimeline(
+						new ActionListener<SearchResponse>() {
+							@Override
+							public void onResponse(SearchResponse response) {
+								
+								timelineResultCache.put(retId, response);
+								sendTimeline(request, channel, response);
+							}
+	
+							@Override
+							public void onFailure(Throwable e) {
+								sendFailure(request, channel, e);
+							}
+						}, interval, timelineField);
 			}
 		}
 
 	}
 	
 	
-	private void sendQuery(int from, Search search, final RestRequest request,final RestChannel channel, SearchResponse response){
+	private void sendQuery(int from, final RestRequest request,final RestChannel channel, SearchResponse response){
 		XContentBuilder builder;
 		try {
 			builder = restContentBuilder(request);								
-			search.buildQuery(from, builder, response);								
+			Search.buildQuery(from, builder, response, logger);								
 			channel.sendResponse(new XContentRestResponse(request, response.status(), builder));
 		} catch (IOException e) {
-			SendFailure(request, channel, e);
+			sendFailure(request, channel, e);
 		}
 	}
 	
 	
 
-	private void sendReport(int from, Search search, final RestRequest request,final RestChannel channel, SearchResponse response){
+	private void sendReport(int from, final RestRequest request,final RestChannel channel, ReportResponse response){
 		XContentBuilder builder;
 		try {
 			builder = restContentBuilder(request);								
-			search.buildReport(from, builder, response);								
-			channel.sendResponse(new XContentRestResponse(request, response.status(), builder));
+			Search.buildReport(from, builder, response, logger);								
+			channel.sendResponse(new XContentRestResponse(request, response.response.status(), builder));
 		} catch (IOException e) {
-			SendFailure(request, channel, e);
+			sendFailure(request, channel, e);
 		} catch (CommandException e) {
-			SendFailure(request, channel, e);
+			sendFailure(request, channel, e);
 		}
 	}
-
-
-        
-
-
-	public void SendFailure(RestRequest request, RestChannel channel, Throwable e) {
+	
+	private void sendTimeline(final RestRequest request,final RestChannel channel, SearchResponse response){
+		XContentBuilder builder;
+		try {
+			builder = restContentBuilder(request);								
+			Search.buildTimeline(builder, response, logger);	
+			channel.sendResponse(new XContentRestResponse(request, response.status(), builder));
+		} catch (IOException e) {
+			sendFailure(request, channel, e);
+		}
+	}
+	
+	public void sendFailure(RestRequest request, RestChannel channel, Throwable e) {
 		try {
 			channel.sendResponse(new XContentThrowableRestResponse(request, e));
 		} catch (IOException e1) {

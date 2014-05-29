@@ -1,12 +1,23 @@
+v0.2.4(2014年5月20日)
+job endpoint支持timeline
+    localhost:9200/jobs/299450.5410349557/timeline?interval=1s&timelineField=accessTime, 使用jobid取时间线结果
+
+v0.2.3(2014年5月8日)
+stats命令增加了limit选项
+    例如 stats limit=50 sum(upflow) by user
+index参数    
+    过滤不存在的index，不然查询会失败
+    如果所有指定的index都不存在，那么将在《所有的index》针对条件进行查询    
+
 v0.2.1(2014年4月29日)
 修改了输出的json格式化，更加易读和简单。
 输出如下：
     {"took":293,"total":1,"fields":["postDate","mm","_count"],"rows":[["1258294332000","3","3"]]}
 新增job方式的访问
-    第一步：localhost:9200/_commandjob?q=<command>&from=0&size=50，返回{"jobid":"299450.5410349557"}
+    第一步：localhost:9200/_commandjob?q=<command>，返回{"jobid":"299450.5410349557"}
     第二步：
-        localhost:9200/jobs/299450.5410349557/query, 使用jobid取查询结果
-        localhost:9200/jobs/299450.5410349557/report, 使用jobid取统计结果
+        localhost:9200/jobs/299450.5410349557/query?from=0&size=50, 使用jobid取查询结果
+        localhost:9200/jobs/299450.5410349557/report?from=0&size=50, 使用jobid取统计结果
 版本号的发布规定
     当最后一个小版本号为奇数时，该版本为测试版，如v0.2.1
     当最后一个小版本号为偶数时，该版本为稳定版，如v0.2.2

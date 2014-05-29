@@ -3,9 +3,15 @@ package com.everdata.test;
 import java.io.DataInputStream;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import junit.framework.TestCase;
 
+import org.apache.http.client.utils.URIBuilder;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.transport.TransportClient;
@@ -28,52 +34,83 @@ import static org.junit.Assert.*;
 
 
 public class CommandActionTest{
-    Client client;
+	private String host = "http://192.168.200.121:9200/_command";
     
 	@Before
     public void setUp() throws Exception {
-		System.out.println("connect");
-		client = new TransportClient().addTransportAddress(new InetSocketTransportAddress("192.168.200.13", 9300));
 		
 	}
 
     @After
     public void tearDown() throws Exception {
-    	client.close();
-    	System.out.println("close");
-    }
-
-    @Test
-    public void deleteAction() {
-    	assertEquals(true, true);
+    	
     }
     
+    static AtomicInteger success_conn = new AtomicInteger(0);
+    static AtomicInteger success_recv = new AtomicInteger(0);
+    
+	
+	
     @Test
-    public void selectAction() {
-    	CommandParser cp = null;
-    	try {
-			 cp = new CommandParser(new DataInputStream(new FileInputStream("src/test/searchcommand")));		   	
-    	} catch (FileNotFoundException e) {
-			e.printStackTrace();
-		}
-    	
-    	
-    	Plan[] plans = null;
+    public void multiThread() {
+    	Random rand = new Random();
+
+        URIBuilder uriBuilder = new URIBuilder();
+        uriBuilder.addParameter("q", String.valueOf(rand.nextDouble()));
+        uriBuilder.addParameter("query", "true");
+        final String uri;
 		try {
-			plans = Optimizer.evaluate(cp.Start(), client, null);
-		} catch (CommandException e) {
+			uri = uriBuilder.build().toString();
+		} catch (URISyntaxException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-		} catch (ParseException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			return;
 		}
-    	
-    	for(Plan p : plans){
-    		ActionResponse res = p.execute();	
-    	}
-    	
-    	assertEquals("yes", 1, 1);
+		
+		List<Thread> handles = new ArrayList<Thread>();
+		for(int j = 0; j < 10; j++){
+			for(int i = 0; i < 1000; i++){
+				Thread handle = new Thread(new Runnable(){
+		
+					@Override
+					public void run() {
+						
+						String json = HttpHelper.sendGetUrl(host, uri);
+						
+						if(json != null && !json.contains("Exception")){
+							success_recv.incrementAndGet();
+						}
+				        //System.out.println(json);
+					}
+					
+				});
+				
+				handle.start();
+				handles.add(handle);
+				
+				
+				
+			
+			}
+			System.out.println("-----------------------");
+			
+			for(Thread t: handles){
+				try {
+					//System.out.print(t.isAlive());
+					t.join();
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+			
+			handles.clear();
+		}
+		
+		
+		System.out.println("success_conn:" + success_conn.get());
+		System.out.println("success_recv:" + success_recv.get());
+		        
     }
 
 }

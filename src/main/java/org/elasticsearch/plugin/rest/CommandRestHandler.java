@@ -12,10 +12,13 @@ import org.elasticsearch.rest.XContentRestResponse;
 import org.elasticsearch.rest.XContentThrowableRestResponse;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.deletebyquery.DeleteByQueryResponse;
+import org.elasticsearch.action.search.SearchPhaseExecutionException;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.search.ShardSearchFailure;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.concurrent.EsRejectedExecutionException;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
 import static org.elasticsearch.rest.RestRequest.Method.GET;
@@ -27,9 +30,9 @@ import org.elasticsearch.rest.action.support.RestXContentBuilder;
 import org.elasticsearch.rest.support.RestUtils;
 
 import com.everdata.command.CommandException;
+import com.everdata.command.ReportResponse;
 import com.everdata.command.Search;
 import com.everdata.parser.AST_Start;
-
 import com.everdata.parser.CommandParser;
 import com.everdata.parser.ParseException;
 
@@ -66,19 +69,18 @@ public class CommandRestHandler extends BaseRestHandler {
 			if( ! command.toLowerCase().startsWith("search"))
 				command = "search "+command;				
 		}
+		logger.info(command);
 
 		final int from = request.paramAsInt("from", 0);
-		int size = request.paramAsInt("size", 50);
+		final int size = request.paramAsInt("size", 50);
 
 		final Search search;
 
 		try {
 			CommandParser parser = new CommandParser(command);
 			
-			if (logger.isDebugEnabled()) {
-				AST_Start.dumpWithLogger(logger, parser.getInnerTree(), "");
-			}
-
+			AST_Start.dumpWithLogger(logger, parser.getInnerTree(), "");
+			
 			search = new Search(parser, client, logger);
 			
 
@@ -149,7 +151,7 @@ public class CommandRestHandler extends BaseRestHandler {
 							public void onResponse(SearchResponse response) {
 								try {
 									XContentBuilder builder = restContentBuilder(request);
-									search.buildQuery(from, builder, response);									
+									Search.buildQuery(from, builder, response, logger);									
 									channel.sendResponse(new XContentRestResponse(
 											request, response.status(), builder));
 								} catch (Exception e) {								
@@ -163,13 +165,20 @@ public class CommandRestHandler extends BaseRestHandler {
 							}
 						}, from, size);
 			}else{
+				final ReportResponse result =  new ReportResponse();
+				result.bucketFields = search.bucketFields;
+
+				result.funcFields = search.funcFields;
+				
 				search.executeReport(
 						new ActionListener<SearchResponse>() {
 							@Override
 							public void onResponse(SearchResponse response) {
 								try {
 									XContentBuilder builder = restContentBuilder(request);
-									search.buildReport(from, builder, response);
+									
+									result.response = response;
+									Search.buildReport(from, builder, result, logger);
 									channel.sendResponse(new XContentRestResponse(
 											request, response.status(), builder));
 								} catch (Exception e) {

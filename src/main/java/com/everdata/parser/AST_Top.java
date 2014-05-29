@@ -7,13 +7,13 @@ import java.util.HashMap;
 import java.util.Map;
 
 
-import org.elasticsearch.search.aggregations.AggregationBuilders;
+
+
 import org.elasticsearch.search.aggregations.bucket.terms.TermsBuilder;
 
 import com.everdata.command.CommandException;
-import com.everdata.command.Field;
-
 import com.everdata.command.Option;
+import com.everdata.command.Search;
 
 public class AST_Top extends SimpleNode {
 	
@@ -54,29 +54,21 @@ public class AST_Top extends SimpleNode {
 		}
 	}
 	
-	public static TermsBuilder newTerms(String name, int size, String[] fields){
-		TermsBuilder agg = AggregationBuilders.terms(name).size(size);
-		if(fields.length == 1)
-			agg.field(fields[0]);
-		else
-			agg.script(Field.fieldsToScript(fields));
-		
-		return agg;
-	}
+	
 	
 
 	private TermsBuilder genAggregation() throws CommandException{
 		
 		traverseAST();
 		
-		TermsBuilder local = newTerms("top", Integer.parseInt(options.get(Option.LIMIT)), topFields);
+		TermsBuilder local = Search.newTerms("top", Integer.parseInt(options.get(Option.LIMIT)), topFields);
 		
 		if(options.get(Option.MINCOUNT) != null){
 			local.minDocCount(Long.parseLong(options.get(Option.MINCOUNT)));
 		}
 		
 		if(bucketFields.length > 0){			
-			local = newTerms("topWithBy", -1, bucketFields).subAggregation(local);
+			local = Search.newTerms("topWithBy", Integer.parseInt(options.get(Option.LIMIT)), bucketFields).subAggregation(local);
 		}
 		
 		return local;

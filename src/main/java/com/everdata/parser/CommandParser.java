@@ -262,14 +262,29 @@ public class CommandParser/*@bgen(jjtree)*/implements CommandParserTreeConstants
     try {
       jj_consume_token(K_STATS);
       switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
+      case K_LIMIT:
       case K_MINCOUNT:
-        jj_consume_token(K_MINCOUNT);
-        jj_consume_token(O_EQ);
-        jj_consume_token(S_INTEGER);
-                                           jjtn000.mincount = Integer.parseInt(token.image);
+        switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
+        case K_MINCOUNT:
+          jj_consume_token(K_MINCOUNT);
+          jj_consume_token(O_EQ);
+          jj_consume_token(S_INTEGER);
+                                  jjtn000.mincount = Integer.parseInt(token.image);
+          break;
+        case K_LIMIT:
+          jj_consume_token(K_LIMIT);
+          jj_consume_token(O_EQ);
+          jj_consume_token(S_INTEGER);
+                                 jjtn000.limit = Integer.parseInt(token.image);
+          break;
+        default:
+          jj_la1[7] = jj_gen;
+          jj_consume_token(-1);
+          throw new ParseException();
+        }
         break;
       default:
-        jj_la1[7] = jj_gen;
+        jj_la1[8] = jj_gen;
         ;
       }
       StatsFunction();
@@ -280,7 +295,7 @@ public class CommandParser/*@bgen(jjtree)*/implements CommandParserTreeConstants
           ;
           break;
         default:
-          jj_la1[8] = jj_gen;
+          jj_la1[9] = jj_gen;
           break label_4;
         }
         jj_consume_token(O_COMMA);
@@ -291,7 +306,7 @@ public class CommandParser/*@bgen(jjtree)*/implements CommandParserTreeConstants
         ByClause();
         break;
       default:
-        jj_la1[9] = jj_gen;
+        jj_la1[10] = jj_gen;
         ;
       }
     } catch (Throwable jjte000) {
@@ -347,7 +362,7 @@ public class CommandParser/*@bgen(jjtree)*/implements CommandParserTreeConstants
              jjtn000.func.type = Function.AVG;
         break;
       default:
-        jj_la1[10] = jj_gen;
+        jj_la1[11] = jj_gen;
         jj_consume_token(-1);
         throw new ParseException();
       }
@@ -363,7 +378,7 @@ public class CommandParser/*@bgen(jjtree)*/implements CommandParserTreeConstants
                     jjtn000.func.fieldtype = Field.SCRIPT; jjtn000.func.field = token.image.substring(1, token.image.length() - 1);
         break;
       default:
-        jj_la1[11] = jj_gen;
+        jj_la1[12] = jj_gen;
         jj_consume_token(-1);
         throw new ParseException();
       }
@@ -375,7 +390,7 @@ public class CommandParser/*@bgen(jjtree)*/implements CommandParserTreeConstants
                            jjtn000.func.as = token.image;
         break;
       default:
-        jj_la1[12] = jj_gen;
+        jj_la1[13] = jj_gen;
         ;
       }
     } finally {
@@ -439,7 +454,7 @@ public class CommandParser/*@bgen(jjtree)*/implements CommandParserTreeConstants
         ByClause();
         break;
       default:
-        jj_la1[13] = jj_gen;
+        jj_la1[14] = jj_gen;
         ;
       }
     } catch (Throwable jjte000) {
@@ -478,7 +493,7 @@ public class CommandParser/*@bgen(jjtree)*/implements CommandParserTreeConstants
           ;
           break;
         default:
-          jj_la1[14] = jj_gen;
+          jj_la1[15] = jj_gen;
           break label_6;
         }
         jj_consume_token(O_COMMA);
@@ -564,7 +579,7 @@ public class CommandParser/*@bgen(jjtree)*/implements CommandParserTreeConstants
                                    jjtn000.opt.type = Option.MINCOUNT; jjtn000.opt.value = token.image;
         break;
       default:
-        jj_la1[15] = jj_gen;
+        jj_la1[16] = jj_gen;
         jj_consume_token(-1);
         throw new ParseException();
       }
@@ -591,7 +606,7 @@ public class CommandParser/*@bgen(jjtree)*/implements CommandParserTreeConstants
           ;
           break;
         default:
-          jj_la1[16] = jj_gen;
+          jj_la1[17] = jj_gen;
           break label_7;
         }
         jj_consume_token(O_COMMA);
@@ -631,7 +646,7 @@ public class CommandParser/*@bgen(jjtree)*/implements CommandParserTreeConstants
         BooleanExpression();
         break;
       default:
-        jj_la1[17] = jj_gen;
+        jj_la1[18] = jj_gen;
         ;
       }
     } catch (Throwable jjte000) {
@@ -669,7 +684,7 @@ public class CommandParser/*@bgen(jjtree)*/implements CommandParserTreeConstants
           ;
           break;
         default:
-          jj_la1[18] = jj_gen;
+          jj_la1[19] = jj_gen;
           break label_9;
         }
         jj_consume_token(K_OR);
@@ -710,7 +725,7 @@ public class CommandParser/*@bgen(jjtree)*/implements CommandParserTreeConstants
           ;
           break;
         default:
-          jj_la1[19] = jj_gen;
+          jj_la1[20] = jj_gen;
           break label_10;
         }
         jj_consume_token(K_AND);
@@ -749,7 +764,7 @@ public class CommandParser/*@bgen(jjtree)*/implements CommandParserTreeConstants
            jjtn000.isNot = true;
         break;
       default:
-        jj_la1[20] = jj_gen;
+        jj_la1[21] = jj_gen;
         ;
       }
       if (jj_2_3(2147483647)) {
@@ -765,7 +780,7 @@ public class CommandParser/*@bgen(jjtree)*/implements CommandParserTreeConstants
           PredicateExpression();
           break;
         default:
-          jj_la1[21] = jj_gen;
+          jj_la1[22] = jj_gen;
           jj_consume_token(-1);
           throw new ParseException();
         }
@@ -845,7 +860,7 @@ public class CommandParser/*@bgen(jjtree)*/implements CommandParserTreeConstants
                      jjtn000.opt.type = Option.STARTTIME; jjtn000.opt.value = token.image.substring(1, token.image.length() - 1);
           break;
         default:
-          jj_la1[22] = jj_gen;
+          jj_la1[23] = jj_gen;
           jj_consume_token(-1);
           throw new ParseException();
         }
@@ -867,7 +882,7 @@ public class CommandParser/*@bgen(jjtree)*/implements CommandParserTreeConstants
                      jjtn000.opt.type = Option.ENDTIME; jjtn000.opt.value = token.image.substring(1, token.image.length() - 1);
           break;
         default:
-          jj_la1[23] = jj_gen;
+          jj_la1[24] = jj_gen;
           jj_consume_token(-1);
           throw new ParseException();
         }
@@ -900,7 +915,7 @@ public class CommandParser/*@bgen(jjtree)*/implements CommandParserTreeConstants
             ;
             break;
           default:
-            jj_la1[24] = jj_gen;
+            jj_la1[25] = jj_gen;
             break label_11;
           }
           jj_consume_token(O_COMMA);
@@ -920,7 +935,7 @@ public class CommandParser/*@bgen(jjtree)*/implements CommandParserTreeConstants
             ;
             break;
           default:
-            jj_la1[25] = jj_gen;
+            jj_la1[26] = jj_gen;
             break label_12;
           }
           jj_consume_token(O_COMMA);
@@ -929,7 +944,7 @@ public class CommandParser/*@bgen(jjtree)*/implements CommandParserTreeConstants
         }
         break;
       default:
-        jj_la1[26] = jj_gen;
+        jj_la1[27] = jj_gen;
         jj_consume_token(-1);
         throw new ParseException();
       }
@@ -972,7 +987,7 @@ public class CommandParser/*@bgen(jjtree)*/implements CommandParserTreeConstants
             ;
             break;
           default:
-            jj_la1[27] = jj_gen;
+            jj_la1[28] = jj_gen;
             break label_13;
           }
           if (jj_2_4(2)) {
@@ -986,7 +1001,7 @@ public class CommandParser/*@bgen(jjtree)*/implements CommandParserTreeConstants
               TermExpression();
               break;
             default:
-              jj_la1[28] = jj_gen;
+              jj_la1[29] = jj_gen;
               jj_consume_token(-1);
               throw new ParseException();
             }
@@ -1009,7 +1024,7 @@ public class CommandParser/*@bgen(jjtree)*/implements CommandParserTreeConstants
               ;
               break;
             default:
-              jj_la1[29] = jj_gen;
+              jj_la1[30] = jj_gen;
               break label_14;
             }
             if (jj_2_5(2)) {
@@ -1023,7 +1038,7 @@ public class CommandParser/*@bgen(jjtree)*/implements CommandParserTreeConstants
                 TermExpression();
                 break;
               default:
-                jj_la1[30] = jj_gen;
+                jj_la1[31] = jj_gen;
                 jj_consume_token(-1);
                 throw new ParseException();
               }
@@ -1031,7 +1046,7 @@ public class CommandParser/*@bgen(jjtree)*/implements CommandParserTreeConstants
           }
           break;
         default:
-          jj_la1[31] = jj_gen;
+          jj_la1[32] = jj_gen;
           jj_consume_token(-1);
           throw new ParseException();
         }
@@ -1078,7 +1093,7 @@ public class CommandParser/*@bgen(jjtree)*/implements CommandParserTreeConstants
           jj_consume_token(S_IDENTIFIER);
           break;
         default:
-          jj_la1[32] = jj_gen;
+          jj_la1[33] = jj_gen;
           jj_consume_token(-1);
           throw new ParseException();
         }
@@ -1093,7 +1108,7 @@ public class CommandParser/*@bgen(jjtree)*/implements CommandParserTreeConstants
                      jjtn000.type = AST_TermExpression.PHRASE; jjtn000.term = token.image.substring(1, token.image.length() - 1);
         break;
       default:
-        jj_la1[33] = jj_gen;
+        jj_la1[34] = jj_gen;
         jj_consume_token(-1);
         throw new ParseException();
       }
@@ -1138,7 +1153,7 @@ public class CommandParser/*@bgen(jjtree)*/implements CommandParserTreeConstants
             jjtn000.expr.oper = Expression.LTE;
         break;
       default:
-        jj_la1[34] = jj_gen;
+        jj_la1[35] = jj_gen;
         jj_consume_token(-1);
         throw new ParseException();
       }
@@ -1157,7 +1172,7 @@ public class CommandParser/*@bgen(jjtree)*/implements CommandParserTreeConstants
           jj_consume_token(S_IDENTIFIER);
           break;
         default:
-          jj_la1[35] = jj_gen;
+          jj_la1[36] = jj_gen;
           jj_consume_token(-1);
           throw new ParseException();
         }
@@ -1172,7 +1187,7 @@ public class CommandParser/*@bgen(jjtree)*/implements CommandParserTreeConstants
                      jjtn000.expr.value = token.image.substring(1, token.image.length() - 1); jjtn000.expr.valueType = AST_TermExpression.PHRASE;
         break;
       default:
-        jj_la1[36] = jj_gen;
+        jj_la1[37] = jj_gen;
         jj_consume_token(-1);
         throw new ParseException();
       }
@@ -1225,44 +1240,6 @@ public class CommandParser/*@bgen(jjtree)*/implements CommandParserTreeConstants
     finally { jj_save(5, xla); }
   }
 
-  private boolean jj_3R_51() {
-    Token xsp;
-    xsp = jj_scanpos;
-    if (jj_3_4()) {
-    jj_scanpos = xsp;
-    if (jj_3R_56()) return true;
-    }
-    return false;
-  }
-
-  private boolean jj_3_4() {
-    if (jj_3R_18()) return true;
-    return false;
-  }
-
-  private boolean jj_3R_55() {
-    if (jj_scan_token(S_QUOTED_STRING)) return true;
-    return false;
-  }
-
-  private boolean jj_3R_54() {
-    Token xsp;
-    xsp = jj_scanpos;
-    if (jj_scan_token(77)) {
-    jj_scanpos = xsp;
-    if (jj_scan_token(79)) {
-    jj_scanpos = xsp;
-    if (jj_scan_token(80)) return true;
-    }
-    }
-    return false;
-  }
-
-  private boolean jj_3R_43() {
-    if (jj_scan_token(O_LTE)) return true;
-    return false;
-  }
-
   private boolean jj_3R_42() {
     if (jj_scan_token(O_LT)) return true;
     return false;
@@ -1289,13 +1266,13 @@ public class CommandParser/*@bgen(jjtree)*/implements CommandParserTreeConstants
     return false;
   }
 
-  private boolean jj_3R_25() {
-    if (jj_scan_token(K_USEOTHER)) return true;
+  private boolean jj_3R_38() {
     if (jj_scan_token(O_EQ)) return true;
     return false;
   }
 
-  private boolean jj_3R_38() {
+  private boolean jj_3R_25() {
+    if (jj_scan_token(K_USEOTHER)) return true;
     if (jj_scan_token(O_EQ)) return true;
     return false;
   }
@@ -1638,6 +1615,44 @@ public class CommandParser/*@bgen(jjtree)*/implements CommandParserTreeConstants
     return false;
   }
 
+  private boolean jj_3R_51() {
+    Token xsp;
+    xsp = jj_scanpos;
+    if (jj_3_4()) {
+    jj_scanpos = xsp;
+    if (jj_3R_56()) return true;
+    }
+    return false;
+  }
+
+  private boolean jj_3_4() {
+    if (jj_3R_18()) return true;
+    return false;
+  }
+
+  private boolean jj_3R_55() {
+    if (jj_scan_token(S_QUOTED_STRING)) return true;
+    return false;
+  }
+
+  private boolean jj_3R_54() {
+    Token xsp;
+    xsp = jj_scanpos;
+    if (jj_scan_token(77)) {
+    jj_scanpos = xsp;
+    if (jj_scan_token(79)) {
+    jj_scanpos = xsp;
+    if (jj_scan_token(80)) return true;
+    }
+    }
+    return false;
+  }
+
+  private boolean jj_3R_43() {
+    if (jj_scan_token(O_LTE)) return true;
+    return false;
+  }
+
   /** Generated Token Manager. */
   public CommandParserTokenManager token_source;
   JavaCharStream jj_input_stream;
@@ -1649,7 +1664,7 @@ public class CommandParser/*@bgen(jjtree)*/implements CommandParserTreeConstants
   private Token jj_scanpos, jj_lastpos;
   private int jj_la;
   private int jj_gen;
-  final private int[] jj_la1 = new int[37];
+  final private int[] jj_la1 = new int[38];
   static private int[] jj_la1_0;
   static private int[] jj_la1_1;
   static private int[] jj_la1_2;
@@ -1659,13 +1674,13 @@ public class CommandParser/*@bgen(jjtree)*/implements CommandParserTreeConstants
       jj_la1_init_2();
    }
    private static void jj_la1_init_0() {
-      jj_la1_0 = new int[] {0x0,0x400000,0x0,0x0,0x4000000,0x0,0x0,0x100000,0x0,0x800000,0x0,0x0,0x0,0x800000,0x0,0x107f00,0x0,0x0,0x0,0x40,0x0,0x0,0x0,0x0,0x0,0x0,0x2f8000,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,};
+      jj_la1_0 = new int[] {0x0,0x400000,0x0,0x0,0x4000000,0x0,0x0,0x100200,0x100200,0x0,0x800000,0x0,0x0,0x0,0x800000,0x0,0x107f00,0x0,0x0,0x0,0x40,0x0,0x0,0x0,0x0,0x0,0x0,0x2f8000,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,};
    }
    private static void jj_la1_init_1() {
-      jj_la1_1 = new int[] {0x0,0x40004000,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0xbe00000,0x0,0x10000000,0x0,0x0,0x0,0x0,0x100,0x80,0x0,0x100,0x0,0x0,0x0,0x0,0x0,0x180004,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x80000000,0x0,0x0,};
+      jj_la1_1 = new int[] {0x0,0x40004000,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0xbe00000,0x0,0x10000000,0x0,0x0,0x0,0x0,0x100,0x80,0x0,0x100,0x0,0x0,0x0,0x0,0x0,0x180004,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x80000000,0x0,0x0,};
    }
    private static void jj_la1_init_2() {
-      jj_la1_2 = new int[] {0x400,0x0,0x2000,0x80,0x0,0x90000,0x90000,0x0,0x80,0x0,0x0,0x90000,0x0,0x0,0x80,0x0,0x80,0x9a020,0x0,0x0,0x0,0x9a000,0x90000,0x90000,0x80,0x80,0x0,0x9a000,0x9a000,0x9a000,0x9a000,0x9a000,0x1a000,0x9a000,0x1f,0x1a000,0x9a000,};
+      jj_la1_2 = new int[] {0x400,0x0,0x2000,0x80,0x0,0x90000,0x90000,0x0,0x0,0x80,0x0,0x0,0x90000,0x0,0x0,0x80,0x0,0x80,0x9a020,0x0,0x0,0x0,0x9a000,0x90000,0x90000,0x80,0x80,0x0,0x9a000,0x9a000,0x9a000,0x9a000,0x9a000,0x1a000,0x9a000,0x1f,0x1a000,0x9a000,};
    }
   final private JJCalls[] jj_2_rtns = new JJCalls[6];
   private boolean jj_rescan = false;
@@ -1682,7 +1697,7 @@ public class CommandParser/*@bgen(jjtree)*/implements CommandParserTreeConstants
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 37; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 38; i++) jj_la1[i] = -1;
     for (int i = 0; i < jj_2_rtns.length; i++) jj_2_rtns[i] = new JJCalls();
   }
 
@@ -1698,7 +1713,7 @@ public class CommandParser/*@bgen(jjtree)*/implements CommandParserTreeConstants
     jj_ntk = -1;
     jjtree.reset();
     jj_gen = 0;
-    for (int i = 0; i < 37; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 38; i++) jj_la1[i] = -1;
     for (int i = 0; i < jj_2_rtns.length; i++) jj_2_rtns[i] = new JJCalls();
   }
 
@@ -1709,7 +1724,7 @@ public class CommandParser/*@bgen(jjtree)*/implements CommandParserTreeConstants
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 37; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 38; i++) jj_la1[i] = -1;
     for (int i = 0; i < jj_2_rtns.length; i++) jj_2_rtns[i] = new JJCalls();
   }
 
@@ -1721,7 +1736,7 @@ public class CommandParser/*@bgen(jjtree)*/implements CommandParserTreeConstants
     jj_ntk = -1;
     jjtree.reset();
     jj_gen = 0;
-    for (int i = 0; i < 37; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 38; i++) jj_la1[i] = -1;
     for (int i = 0; i < jj_2_rtns.length; i++) jj_2_rtns[i] = new JJCalls();
   }
 
@@ -1731,7 +1746,7 @@ public class CommandParser/*@bgen(jjtree)*/implements CommandParserTreeConstants
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 37; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 38; i++) jj_la1[i] = -1;
     for (int i = 0; i < jj_2_rtns.length; i++) jj_2_rtns[i] = new JJCalls();
   }
 
@@ -1742,7 +1757,7 @@ public class CommandParser/*@bgen(jjtree)*/implements CommandParserTreeConstants
     jj_ntk = -1;
     jjtree.reset();
     jj_gen = 0;
-    for (int i = 0; i < 37; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 38; i++) jj_la1[i] = -1;
     for (int i = 0; i < jj_2_rtns.length; i++) jj_2_rtns[i] = new JJCalls();
   }
 
@@ -1859,7 +1874,7 @@ public class CommandParser/*@bgen(jjtree)*/implements CommandParserTreeConstants
       la1tokens[jj_kind] = true;
       jj_kind = -1;
     }
-    for (int i = 0; i < 37; i++) {
+    for (int i = 0; i < 38; i++) {
       if (jj_la1[i] == jj_gen) {
         for (int j = 0; j < 32; j++) {
           if ((jj_la1_0[i] & (1<<j)) != 0) {

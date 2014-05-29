@@ -3,6 +3,7 @@
 package com.everdata.parser;
 
 import org.elasticsearch.index.query.AndFilterBuilder;
+import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.FilterBuilder;
 import org.elasticsearch.index.query.NotFilterBuilder;
 import org.elasticsearch.index.query.OrFilterBuilder;
@@ -10,6 +11,7 @@ import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.FilterBuilders;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.query.RangeFilterBuilder;
+import org.elasticsearch.index.query.RangeQueryBuilder;
 
 import com.everdata.command.CommandException;
 import com.everdata.command.Option;
@@ -21,6 +23,8 @@ public class AST_Search extends SimpleNode {
 
 	HashMap<Integer, String> options = null;
 	FilterBuilder filterBuilder = null;
+	QueryBuilder queryBuilder = null;
+	
 	AST_OrExpr childExpression = null, parentExpression = null;
 	
 
@@ -84,6 +88,26 @@ public class AST_Search extends SimpleNode {
 				}
 			}
 		}
+	}
+	
+	private static QueryBuilder fromValueTypeQ(String field, String value, int valueType){
+		if(value.contains("*") || value.contains("?")){
+			if( value.length() > 1 && value.indexOf('*') == (value.length()-1))
+				return QueryBuilders.prefixQuery(field, value.substring(0, value.length()-1));
+			else
+				return QueryBuilders.wildcardQuery(field, value);
+		}
+		
+		switch(valueType){
+		case AST_TermExpression.TERM:
+			return QueryBuilders.termQuery(field, value);
+		case AST_TermExpression.PHRASE:
+			/*for(byte b: value.getBytes()){
+				System.out.printf("0x%02X ", b);		        
+			}*/
+			return QueryBuilders.matchPhraseQuery(field, value);
+		}
+		return null;
 	}
 
 	private static FilterBuilder fromValueType(String field, String value, int valueType){
@@ -188,7 +212,7 @@ public class AST_Search extends SimpleNode {
 	
 	
 	
-	public FilterBuilder getInternalFilter() throws CommandException {
+	private FilterBuilder getInternalFilter() throws CommandException {
 		
 		
 		if (filterBuilder != null)
@@ -237,8 +261,139 @@ public class AST_Search extends SimpleNode {
 
 	}
 	
+	private static QueryBuilder genQueryBuilder(SimpleNode tree) throws CommandException{
+		
+		
+		//logic expression
+				
+		
+		switch(tree.id){
+		case CommandParserTreeConstants.JJT_TERMEXPRESSION:
+			AST_TermExpression t = (AST_TermExpression)tree;
+			return fromValueTypeQ("_all", t.term, t.type);
+			
+		case CommandParserTreeConstants.JJT_COMPARISONEXPRESSION:
+			Expression expr = ((AST_ComparisonExpression)tree).expr;
+			switch(expr.oper){
+			case Expression.EQ:
+				return fromValueTypeQ(expr.field,expr.value, expr.valueType);				
+			case Expression.NEQ:
+				return QueryBuilders.boolQuery().mustNot(fromValueTypeQ(expr.field,expr.value, expr.valueType));
+			default:
+				//Object number = convert(expr.value);
+				//if( number == null )
+				//	throw new CommandException("不支持针对非数字类型的值做Range类型的查询");
+				if( expr.oper == Expression.GT)			
+					return QueryBuilders.rangeQuery(expr.field).gt(expr.value);
+				else if( expr.oper == Expression.GTE)
+					return QueryBuilders.rangeQuery(expr.field).gte(expr.value);
+				else if( expr.oper == Expression.LT)
+					return QueryBuilders.rangeQuery(expr.field).lt(expr.value);
+				else if( expr.oper == Expression.LTE)
+					return QueryBuilders.rangeQuery(expr.field).lte(expr.value);
+
+			}
+
+		case CommandParserTreeConstants.JJT_PREDICATEEXPRESSION:
+			if(tree.children.length > 1){
+				BoolQueryBuilder fb = QueryBuilders.boolQuery();
+				for(Node n: tree.children){
+					fb.must(genQueryBuilder((SimpleNode)n));
+				}
+				
+				return fb;
+			}else
+				return genQueryBuilder((SimpleNode)tree.children[0]);
+		case CommandParserTreeConstants.JJT_OREXPR:			
+			if(tree.children.length > 1){				
+				BoolQueryBuilder fb = QueryBuilders.boolQuery();
+				for(Node n: tree.children){
+					fb.should(genQueryBuilder((SimpleNode)n));
+				}
+				
+				return fb;
+			}else
+				return genQueryBuilder((SimpleNode)tree.children[0]);
+			
+			
+		case CommandParserTreeConstants.JJT_ANDEXPR:
+			if(tree.children.length > 1){
+				BoolQueryBuilder fb = QueryBuilders.boolQuery();
+				for(Node n: tree.children){
+					fb.must(genQueryBuilder((SimpleNode)n));
+				}
+				
+				return fb;
+			}else
+				return genQueryBuilder((SimpleNode)tree.children[0]);
+			
+		case CommandParserTreeConstants.JJT_UNARYEXPR:			
+			if(((AST_UnaryExpr)tree).isNot){
+				BoolQueryBuilder fb = QueryBuilders.boolQuery().mustNot(genQueryBuilder((SimpleNode)tree.children[0]));
+				return fb;
+			}else
+				return genQueryBuilder((SimpleNode)tree.children[0]);
+			
+		
+		}
+		
+		return genQueryBuilder((SimpleNode)tree.children[0]);
+		
+	}
+	
+	private QueryBuilder getInternalQuery() throws CommandException {
+		
+		
+		if (queryBuilder != null)
+			return queryBuilder;
+		
+		ArrayList<QueryBuilder> allQuerys = new ArrayList<QueryBuilder>();
+		
+		for (Node n : children) {
+			if (n instanceof AST_OrExpr) {
+				allQuerys.add(genQueryBuilder((SimpleNode)n));
+				break;
+			}
+		}
+				
+		String childType = getOption(Option.HASCHILD);		
+		String parentType = getOption(Option.HASPARENT);
+		
+		//FilterBuilder parent_child = null;
+		if(childType != null){
+			
+			allQuerys.add(QueryBuilders.hasChildQuery(childType, genQueryBuilder(childExpression)));
+			
+		}else if(parentType != null){
+			
+			allQuerys.add(QueryBuilders.hasParentQuery(parentType, genQueryBuilder(parentExpression)));		
+		
+		}
+		
+		String starttime = getOption(Option.STARTTIME);
+		String endtime = getOption(Option.ENDTIME);
+						
+		if(starttime != null | endtime !=null){
+			RangeQueryBuilder timeFilter = QueryBuilders.rangeQuery("_timestamp").from(starttime).to(endtime);
+			allQuerys.add(timeFilter);
+		}		
+		
+		if( allQuerys.size() == 0)
+			queryBuilder = null;
+		else if( allQuerys.size() == 1)
+			queryBuilder = allQuerys.get(0);
+		else{
+			for(QueryBuilder q: allQuerys){
+				queryBuilder = QueryBuilders.boolQuery().must(q);
+			}
+		}
+		
+		return queryBuilder;
+		
+
+	}
 	public QueryBuilder getQueryBuilder() throws CommandException{
-		return (getInternalFilter() == null) ? QueryBuilders.matchAllQuery() : QueryBuilders.constantScoreQuery( getInternalFilter() );
+		return (getInternalQuery() == null) ? QueryBuilders.matchAllQuery() : QueryBuilders.constantScoreQuery( getInternalQuery() );
 	}
 
 }

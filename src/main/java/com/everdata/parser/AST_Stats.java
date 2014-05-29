@@ -11,10 +11,12 @@ import org.elasticsearch.search.aggregations.metrics.avg.AvgBuilder;
 import org.elasticsearch.search.aggregations.metrics.max.MaxBuilder;
 import org.elasticsearch.search.aggregations.metrics.min.MinBuilder;
 import org.elasticsearch.search.aggregations.metrics.sum.SumBuilder;
+import org.elasticsearch.search.aggregations.metrics.valuecount.ValueCountBuilder;
 
 import com.everdata.command.CommandException;
 import com.everdata.command.Field;
 import com.everdata.command.Function;
+import com.everdata.command.Search;
 
 public class AST_Stats extends SimpleNode {
 
@@ -22,9 +24,10 @@ public class AST_Stats extends SimpleNode {
 	String[] bucketFields = new String[0];
 	ArrayList<Function> funcs = new ArrayList<Function>();
 	int mincount = 1;
+	int limit = -1;
 	ArrayList<String> statsFields = new ArrayList<String>();
 	
-	public Function count = null;
+	//public Function count = null;
 	public String[] bucketFields(){
 		return bucketFields; 
 	}
@@ -41,7 +44,17 @@ public class AST_Stats extends SimpleNode {
 		super(p, id);
 	}
 	
-	
+	public static AbstractAggregationBuilder newCount(Function func) {
+		ValueCountBuilder count;
+//		if (func.fieldtype == Field.SCRIPT)
+//			count = AggregationBuilders.count(Function.genStatField(func))
+//					.script(func.field);
+//		else
+		count = AggregationBuilders.count(Function.genStatField(func))
+					.field(func.field);
+
+		return count;
+	}
 
 	public static AbstractAggregationBuilder newSum(Function func) {
 		SumBuilder sum;
@@ -113,7 +126,7 @@ public class AST_Stats extends SimpleNode {
 		AbstractAggregationBuilder function = null;
 
 		if (bucketFields.length > 0) {
-			buckets = AST_Top.newTerms("statsWithBy", -1, bucketFields);
+			buckets = Search.newTerms("statsWithBy", limit, bucketFields);
 			buckets.minDocCount(mincount);			
 		}
 
@@ -121,8 +134,8 @@ public class AST_Stats extends SimpleNode {
 			
 			switch (func.type) {
 			case Function.COUNT:
-				count = func;
-				continue;
+				function = newCount(func);
+				break;
 			case Function.SUM:
 				function = newSum(func);
 				break;
