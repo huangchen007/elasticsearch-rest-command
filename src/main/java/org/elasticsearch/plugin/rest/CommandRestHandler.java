@@ -5,13 +5,16 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.HashMap;
 
+import org.elasticsearch.rest.BytesRestResponse;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.XContentRestResponse;
-import org.elasticsearch.rest.XContentThrowableRestResponse;
+import org.elasticsearch.rest.RestResponse;
+import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.ShardOperationFailedException;
 import org.elasticsearch.action.deletebyquery.DeleteByQueryResponse;
+import org.elasticsearch.action.deletebyquery.IndexDeleteByQueryResponse;
 import org.elasticsearch.action.search.SearchPhaseExecutionException;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.ShardSearchFailure;
@@ -20,13 +23,13 @@ import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.EsRejectedExecutionException;
 import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.common.xcontent.XContentBuilderString;
 
 import static org.elasticsearch.rest.RestRequest.Method.GET;
 import static org.elasticsearch.rest.RestRequest.Method.POST;
-import static org.elasticsearch.rest.action.support.RestXContentBuilder.restContentBuilder;
 
 import org.elasticsearch.rest.BaseRestHandler;
-import org.elasticsearch.rest.action.support.RestXContentBuilder;
+import org.elasticsearch.rest.action.support.RestBuilderListener;
 import org.elasticsearch.rest.support.RestUtils;
 
 import com.everdata.command.CommandException;
@@ -37,7 +40,6 @@ import com.everdata.parser.CommandParser;
 import com.everdata.parser.ParseException;
 
 public class CommandRestHandler extends BaseRestHandler {
-
 	@Inject
 	public CommandRestHandler(Settings settings, Client client,
 			RestController controller) {
@@ -93,29 +95,13 @@ public class CommandRestHandler extends BaseRestHandler {
 		}
 
 		if (request.paramAsBoolean("delete", false)) {
-			search.executeDelete(new ActionListener<DeleteByQueryResponse>() {
-
-				@Override
-				public void onFailure(Throwable e) {
-					SendFailure(request, channel, e);
-				}
-
-				@Override
-				public void onResponse(DeleteByQueryResponse response) {
-
-					try {
-						XContentBuilder builder = RestXContentBuilder
-								.restContentBuilder(request);
-						search.buildDelete(builder, response);
-						channel.sendResponse(new XContentRestResponse(request,
-								response.status(), builder));
-					} catch (Throwable e) {
-						onFailure(e);
-					}
-				}
-
+			search.executeDelete(new RestBuilderListener<DeleteByQueryResponse>(channel) {
+	            @Override
+	            public RestResponse buildResponse(DeleteByQueryResponse result, XContentBuilder builder) throws Exception {
+	                search.buildDelete(builder, result);
+	                return new BytesRestResponse(result.status(), builder);
+	            }
 			});
-
 			return;
 		}
 
@@ -128,16 +114,16 @@ public class CommandRestHandler extends BaseRestHandler {
 				public void write(int b) throws IOException {
 					innerBuffer[idx++] = (byte) b;
 					if (idx == innerBuffer.length) {
-						channel.sendBytes(innerBuffer, 0, idx, false);
+						channel.sendContinuousBytes(innerBuffer, 0, idx, false);
 						idx = 0;
 					}
 				}
 				@Override
 				public void close() throws IOException {
 					if (idx > 0)
-						channel.sendBytes(innerBuffer, 0, idx, true);
+						channel.sendContinuousBytes(innerBuffer, 0, idx, true);
 					else
-						channel.sendBytes(null, 0, 0, true);
+						channel.sendContinuousBytes(null, 0, 0, true);
 				}
 
 			});
@@ -146,50 +132,27 @@ public class CommandRestHandler extends BaseRestHandler {
 			if( request.paramAsBoolean("query", true) ){
 
 				search.executeQuery(
-						new ActionListener<SearchResponse>() {
+						new RestBuilderListener<SearchResponse>(channel) {
 							@Override
-							public void onResponse(SearchResponse response) {
-								try {
-									XContentBuilder builder = restContentBuilder(request);
-									Search.buildQuery(from, builder, response, logger);									
-									channel.sendResponse(new XContentRestResponse(
-											request, response.status(), builder));
-								} catch (Exception e) {								
-									onFailure(e);
-								}
-							}
-	
-							@Override
-							public void onFailure(Throwable e) {
-								SendFailure(request, channel, e);
-							}
+				            public RestResponse buildResponse(SearchResponse result, XContentBuilder builder) throws Exception {
+								Search.buildQuery(from, builder, result, logger);
+				                return new BytesRestResponse(result.status(), builder);
+				            }
 						}, from, size);
 			}else{
 				final ReportResponse result =  new ReportResponse();
 				result.bucketFields = search.bucketFields;
-
 				result.funcFields = search.funcFields;
 				
 				search.executeReport(
-						new ActionListener<SearchResponse>() {
+						new RestBuilderListener<SearchResponse>(channel) {
 							@Override
-							public void onResponse(SearchResponse response) {
-								try {
-									XContentBuilder builder = restContentBuilder(request);
-									
-									result.response = response;
-									Search.buildReport(from, builder, result, logger);
-									channel.sendResponse(new XContentRestResponse(
-											request, response.status(), builder));
-								} catch (Exception e) {
-									onFailure(e);
-								}
+							public RestResponse buildResponse(SearchResponse response, XContentBuilder builder) throws Exception {
+								result.response = response;
+								Search.buildReport(from, builder, result, logger);
+								return new BytesRestResponse(response.status(), builder);
 							}
 	
-							@Override
-							public void onFailure(Throwable e) {
-								SendFailure(request, channel, e);
-							}
 						}, from, size);
 			}
 		}
@@ -198,7 +161,7 @@ public class CommandRestHandler extends BaseRestHandler {
 
 	public void SendFailure(RestRequest request, RestChannel channel, Throwable e) {
 		try {
-			channel.sendResponse(new XContentThrowableRestResponse(request, e));
+			channel.sendResponse(new BytesRestResponse(channel, e));
 		} catch (IOException e1) {
 			logger.error("Failed to send failure response", e1);
 		}

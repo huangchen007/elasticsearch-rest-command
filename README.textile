@@ -1,3 +1,9 @@
+v0.3.0(2014年6月5日)
+支持everdata-0.4.0
+新增stats命令去重dc统计选项
+    如：sourcetype=twitter | stats dc(msisdn) by domain
+修复统计报表中字段展示的bug
+
 v0.2.4(2014年5月20日)
 job endpoint支持timeline
     localhost:9200/jobs/299450.5410349557/timeline?interval=1s&timelineField=accessTime, 使用jobid取时间线结果

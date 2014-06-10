@@ -12,7 +12,7 @@ public class Field {
 			
 				
 			for(int i = 1; i< fields.length; i++){
-				script.append("+ '|' + doc['");
+				script.append("+ '| ' + doc['");
 				script.append( fields[i] );
 				script.append("'].value");
 			}

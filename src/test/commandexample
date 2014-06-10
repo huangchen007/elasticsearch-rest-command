@@ -1,1 +1,1 @@
-search *
+search index=idc_log_201403261835,idc_log sourcetype=idcLogMapping haschild=(sourcetype=ddd ddd=ddd ddd) haschild=(sourcetype=ddd ddd=ddd ddd) hasparent=(sourcetype=ttt ttt=tt tt) ddd _ddd="中文"

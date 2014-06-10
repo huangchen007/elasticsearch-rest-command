@@ -3,7 +3,7 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<artifactId>elasticsearch-rest-command</artifactId>
-	<version>0.2.3</version>
+	<version>0.3.0</version>
 	<packaging>jar</packaging>
 
 	<name>elasticsearch-rest-command</name>
@@ -22,7 +22,7 @@
 	</parent>
 
 	<properties>
-		<elasticsearch.version>1.0.1</elasticsearch.version>
+		<elasticsearch.version>1.2.1</elasticsearch.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	</properties>
 
@@ -37,7 +37,7 @@
 		<dependency>
 			<groupId>org.apache.lucene</groupId>
 			<artifactId>lucene-core</artifactId>
-			<version>4.6.1</version>
+			<version>4.8.1</version>
 		</dependency>
 
 		<dependency>
@@ -45,7 +45,7 @@
 			<artifactId>elasticsearch</artifactId>
 			<version>${elasticsearch.version}</version>
 			<scope>system</scope>
-			<systemPath>C:\Users\huangchen\git\elasticsearch-splunk\target\everdata-0.3.0.jar</systemPath>
+			<systemPath>C:\Users\huangchen\git\elasticsearch-splunk\target\everdata-0.4.0.jar</systemPath>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.httpcomponents</groupId>

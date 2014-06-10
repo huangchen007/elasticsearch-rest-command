@@ -40,18 +40,12 @@ import org.elasticsearch.search.aggregations.AbstractAggregationBuilder;
 import org.elasticsearch.search.aggregations.Aggregation;
 import org.elasticsearch.search.aggregations.AggregationBuilders;
 import org.elasticsearch.search.aggregations.Aggregations;
-import org.elasticsearch.search.aggregations.bucket.filter.Filter;
-
-
-
-
 import org.elasticsearch.search.aggregations.bucket.histogram.DateHistogram;
 import org.elasticsearch.search.aggregations.bucket.histogram.DateHistogram.Bucket;
 import org.elasticsearch.search.aggregations.bucket.histogram.DateHistogram.Interval;
 import org.elasticsearch.search.aggregations.bucket.histogram.DateHistogramBuilder;
 import org.elasticsearch.search.aggregations.bucket.terms.Terms;
 import org.elasticsearch.search.aggregations.bucket.terms.TermsBuilder;
-import org.elasticsearch.search.aggregations.bucket.terms.Terms.Order;
 import org.elasticsearch.search.aggregations.metrics.MetricsAggregation.MultiValue;
 import org.elasticsearch.search.aggregations.metrics.MetricsAggregation.SingleValue;
 import org.elasticsearch.search.aggregations.metrics.valuecount.ValueCount;
@@ -99,7 +93,7 @@ public class Search {
 		
 		//过滤不存在的index，不然查询会失败
 		//如果所有指定的index都不存在，那么将在所有的index查询该条件
-		String[] originIndices = searchTree.getOption(Option.INDEX).split(",");
+		String[] originIndices = ((String)searchTree.getOption(Option.INDEX)).split(",");
 		ArrayList<String> listIndices = new ArrayList<String>();
 		
 		for(String index: originIndices){
@@ -113,7 +107,7 @@ public class Search {
 		
 		
 		if(searchTree.getOption(Option.SOURCETYPE) != null)
-			sourceTypes = searchTree.getOption(Option.SOURCETYPE).split(",");
+			sourceTypes = ((String)searchTree.getOption(Option.SOURCETYPE)).split(",");
 				
 		this.querySearch = client.prepareSearch(indices).setTypes(sourceTypes)
 				.setQuery(searchTree.getQueryBuilder());

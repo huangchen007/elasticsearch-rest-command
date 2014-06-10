@@ -8,6 +8,7 @@ import org.elasticsearch.search.aggregations.AbstractAggregationBuilder;
 import org.elasticsearch.search.aggregations.AggregationBuilders;
 import org.elasticsearch.search.aggregations.bucket.terms.TermsBuilder;
 import org.elasticsearch.search.aggregations.metrics.avg.AvgBuilder;
+import org.elasticsearch.search.aggregations.metrics.cardinality.CardinalityBuilder;
 import org.elasticsearch.search.aggregations.metrics.max.MaxBuilder;
 import org.elasticsearch.search.aggregations.metrics.min.MinBuilder;
 import org.elasticsearch.search.aggregations.metrics.sum.SumBuilder;
@@ -101,6 +102,17 @@ public class AST_Stats extends SimpleNode {
 					.field(func.field);
 		return max;
 	}
+	
+	public static AbstractAggregationBuilder newCard(Function func) {
+		CardinalityBuilder max;
+		if (func.fieldtype == Field.SCRIPT)
+			max = AggregationBuilders.cardinality(Function.genStatField(func))
+					.script(func.field);
+		else
+			max = AggregationBuilders.cardinality(Function.genStatField(func))
+					.field(func.field);
+		return max;
+	}
 
 	private void traverseAST() {
 
@@ -150,7 +162,8 @@ public class AST_Stats extends SimpleNode {
 				break;
 
 			case Function.DC:
-				throw new CommandException("不支持 DC 函数");
+				function = newCard(func);
+				break;
 			}
 			statsFields.add( Function.genStatField(func) );
 

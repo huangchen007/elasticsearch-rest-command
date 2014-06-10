@@ -7,13 +7,11 @@ import java.util.Random;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
+import org.elasticsearch.rest.BytesRestResponse;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
-import org.elasticsearch.rest.StringRestResponse;
-import org.elasticsearch.rest.XContentRestResponse;
-import org.elasticsearch.rest.XContentThrowableRestResponse;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.Client;
@@ -26,7 +24,6 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 
 import static org.elasticsearch.rest.RestRequest.Method.GET;
 import static org.elasticsearch.rest.RestRequest.Method.POST;
-import static org.elasticsearch.rest.action.support.RestXContentBuilder.restContentBuilder;
 
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.support.RestUtils;
@@ -173,7 +170,7 @@ public class JobRestHandler extends BaseRestHandler {
 			
 			String jobId = genJobId();
 			commandCache.put(jobId, command);
-			channel.sendResponse(new StringRestResponse(RestStatus.OK, "{\"jobid\":\"" + jobId +"\"}"));
+			channel.sendResponse(new BytesRestResponse(RestStatus.OK, "{\"jobid\":\"" + jobId +"\"}"));
 			return;		
 		}
 		
@@ -295,9 +292,9 @@ public class JobRestHandler extends BaseRestHandler {
 	private void sendQuery(int from, final RestRequest request,final RestChannel channel, SearchResponse response){
 		XContentBuilder builder;
 		try {
-			builder = restContentBuilder(request);								
+			builder = channel.newBuilder();								
 			Search.buildQuery(from, builder, response, logger);								
-			channel.sendResponse(new XContentRestResponse(request, response.status(), builder));
+			channel.sendResponse(new BytesRestResponse(response.status(), builder));
 		} catch (IOException e) {
 			sendFailure(request, channel, e);
 		}
@@ -308,9 +305,9 @@ public class JobRestHandler extends BaseRestHandler {
 	private void sendReport(int from, final RestRequest request,final RestChannel channel, ReportResponse response){
 		XContentBuilder builder;
 		try {
-			builder = restContentBuilder(request);								
+			builder = channel.newBuilder();								
 			Search.buildReport(from, builder, response, logger);								
-			channel.sendResponse(new XContentRestResponse(request, response.response.status(), builder));
+			channel.sendResponse(new BytesRestResponse(response.response.status(), builder));
 		} catch (IOException e) {
 			sendFailure(request, channel, e);
 		} catch (CommandException e) {
@@ -321,9 +318,9 @@ public class JobRestHandler extends BaseRestHandler {
 	private void sendTimeline(final RestRequest request,final RestChannel channel, SearchResponse response){
 		XContentBuilder builder;
 		try {
-			builder = restContentBuilder(request);								
+			builder = channel.newBuilder();							
 			Search.buildTimeline(builder, response, logger);	
-			channel.sendResponse(new XContentRestResponse(request, response.status(), builder));
+			channel.sendResponse(new BytesRestResponse(response.status(), builder));
 		} catch (IOException e) {
 			sendFailure(request, channel, e);
 		}
@@ -331,7 +328,7 @@ public class JobRestHandler extends BaseRestHandler {
 	
 	public void sendFailure(RestRequest request, RestChannel channel, Throwable e) {
 		try {
-			channel.sendResponse(new XContentThrowableRestResponse(request, e));
+			channel.sendResponse(new BytesRestResponse(channel, e));
 		} catch (IOException e1) {
 			logger.error("Failed to send failure response", e1);
 		}

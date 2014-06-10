@@ -17,15 +17,18 @@ import com.everdata.command.CommandException;
 import com.everdata.command.Option;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 
 public class AST_Search extends SimpleNode {
 
-	HashMap<Integer, String> options = null;
+	HashMap<Integer, Object> options = null;
 	FilterBuilder filterBuilder = null;
 	QueryBuilder queryBuilder = null;
 	
-	AST_OrExpr childExpression = null, parentExpression = null;
+	List<AST_OrExpr> childExpressions = new ArrayList<AST_OrExpr>();
+	AST_OrExpr parentExpression = null;
 	
 
 	public AST_Search(int id) {
@@ -47,22 +50,30 @@ public class AST_Search extends SimpleNode {
 		return false;
 	}
 
-	public String getOption(int optionType) {
+	public Object getOption(int optionType) {
 
 		if (options != null) return options.get(optionType);
 		
-		options = new HashMap<Integer, String>();
+		options = new HashMap<Integer, Object>();
 		options.put(Option.INDEX, "_all");
+		
+		ArrayList<String> hasChildTypes = new ArrayList<String>();
 		
 		for (Node n : children) {
 			if (n instanceof AST_SearchOption) {
-				options.put(((AST_SearchOption) n).opt.type, ((AST_SearchOption) n).opt.value);
-				
+								
 				if(((AST_SearchOption) n).opt.type == Option.HASCHILD){
-					childExpression = (AST_OrExpr) ((AST_SearchOption) n).children[0];
+					childExpressions.add((AST_OrExpr) ((AST_SearchOption) n).children[0]);
+					hasChildTypes.add(((AST_SearchOption) n).opt.value);
+					options.put(((AST_SearchOption) n).opt.type, hasChildTypes);
+					
 				}else if(((AST_SearchOption) n).opt.type == Option.HASPARENT){
 					parentExpression = (AST_OrExpr) ((AST_SearchOption) n).children[0];
+					options.put(((AST_SearchOption) n).opt.type, ((AST_SearchOption) n).opt.value);
+				}else{
+					options.put(((AST_SearchOption) n).opt.type, ((AST_SearchOption) n).opt.value);
 				}
+				
 				
 			}
 		}
@@ -227,13 +238,13 @@ public class AST_Search extends SimpleNode {
 			}
 		}
 				
-		String childType = getOption(Option.HASCHILD);		
-		String parentType = getOption(Option.HASPARENT);
+		ArrayList<String> childTypes = (ArrayList<String>)getOption(Option.HASCHILD);		
+		String parentType = (String)getOption(Option.HASPARENT);
 		
 		//FilterBuilder parent_child = null;
-		if(childType != null){
-			
-			allFilters.add(FilterBuilders.hasChildFilter(childType, genFilterBuilder(childExpression)));
+		if(childTypes != null){
+			for(int i = 0; i < childTypes.size(); i++)
+				allFilters.add(FilterBuilders.hasChildFilter(childTypes.get(i), genFilterBuilder(childExpressions.get(i))));
 			
 		}else if(parentType != null){
 			
@@ -241,8 +252,8 @@ public class AST_Search extends SimpleNode {
 		
 		}
 		
-		String starttime = getOption(Option.STARTTIME);
-		String endtime = getOption(Option.ENDTIME);
+		String starttime = (String) getOption(Option.STARTTIME);
+		String endtime = (String) getOption(Option.ENDTIME);
 						
 		if(starttime != null | endtime !=null){
 			RangeFilterBuilder timeFilter = FilterBuilders.rangeFilter("_timestamp").from(starttime).to(endtime);
@@ -356,13 +367,13 @@ public class AST_Search extends SimpleNode {
 			}
 		}
 				
-		String childType = getOption(Option.HASCHILD);		
-		String parentType = getOption(Option.HASPARENT);
+		ArrayList<String> childTypes = (ArrayList<String>)getOption(Option.HASCHILD);		
+		String parentType = (String) getOption(Option.HASPARENT);
 		
 		//FilterBuilder parent_child = null;
-		if(childType != null){
-			
-			allQuerys.add(QueryBuilders.hasChildQuery(childType, genQueryBuilder(childExpression)));
+		if(childTypes != null){
+			for(int i = 0; i< childTypes.size(); i++)
+				allQuerys.add(QueryBuilders.hasChildQuery(childTypes.get(i), genQueryBuilder(childExpressions.get(i))));
 			
 		}else if(parentType != null){
 			
@@ -370,8 +381,8 @@ public class AST_Search extends SimpleNode {
 		
 		}
 		
-		String starttime = getOption(Option.STARTTIME);
-		String endtime = getOption(Option.ENDTIME);
+		String starttime = (String) getOption(Option.STARTTIME);
+		String endtime = (String) getOption(Option.ENDTIME);
 						
 		if(starttime != null | endtime !=null){
 			RangeQueryBuilder timeFilter = QueryBuilders.rangeQuery("_timestamp").from(starttime).to(endtime);
