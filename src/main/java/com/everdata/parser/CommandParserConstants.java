@@ -125,53 +125,55 @@ public interface CommandParserConstants {
   /** RegularExpression Id. */
   int K_SORT = 62;
   /** RegularExpression Id. */
-  int O_EQ = 63;
+  int K_JOIN = 63;
   /** RegularExpression Id. */
-  int O_NEQ = 64;
+  int O_EQ = 64;
   /** RegularExpression Id. */
-  int O_GT = 65;
+  int O_NEQ = 65;
   /** RegularExpression Id. */
-  int O_GTE = 66;
+  int O_GT = 66;
   /** RegularExpression Id. */
-  int O_LT = 67;
+  int O_GTE = 67;
   /** RegularExpression Id. */
-  int O_LTE = 68;
+  int O_LT = 68;
   /** RegularExpression Id. */
-  int O_LPAREN = 69;
+  int O_LTE = 69;
   /** RegularExpression Id. */
-  int O_RPAREN = 70;
+  int O_LPAREN = 70;
   /** RegularExpression Id. */
-  int O_COMMA = 71;
+  int O_RPAREN = 71;
   /** RegularExpression Id. */
-  int O_SEMI = 72;
+  int O_COMMA = 72;
   /** RegularExpression Id. */
-  int O_QUOTE = 73;
+  int O_SEMI = 73;
   /** RegularExpression Id. */
-  int O_VERTICAL = 74;
+  int O_QUOTE = 74;
   /** RegularExpression Id. */
-  int S_CHINESE = 75;
+  int O_VERTICAL = 75;
   /** RegularExpression Id. */
-  int CJK = 76;
+  int S_CHINESE = 76;
   /** RegularExpression Id. */
-  int S_INTEGER = 77;
+  int CJK = 77;
   /** RegularExpression Id. */
-  int DIGIT = 78;
+  int S_INTEGER = 78;
   /** RegularExpression Id. */
-  int S_FLOAT = 79;
+  int DIGIT = 79;
   /** RegularExpression Id. */
-  int S_IDENTIFIER = 80;
+  int S_FLOAT = 80;
   /** RegularExpression Id. */
-  int LETTER = 81;
+  int S_IDENTIFIER = 81;
   /** RegularExpression Id. */
-  int SPECIAL_CHAR = 82;
+  int LETTER = 82;
   /** RegularExpression Id. */
-  int S_QUOTED_STRING = 83;
+  int SPECIAL_CHAR = 83;
   /** RegularExpression Id. */
-  int S_SINGLE_QUOTED_STRING = 84;
+  int S_QUOTED_STRING = 84;
   /** RegularExpression Id. */
-  int LINE_COMMENT = 85;
+  int S_SINGLE_QUOTED_STRING = 85;
   /** RegularExpression Id. */
-  int MULTI_LINE_COMMENT = 86;
+  int LINE_COMMENT = 86;
+  /** RegularExpression Id. */
+  int MULTI_LINE_COMMENT = 87;
 
   /** Lexical state. */
   int DEFAULT = 0;
@@ -241,6 +243,7 @@ public interface CommandParserConstants {
     "\"AS\"",
     "\"REGEX\"",
     "\"SORT\"",
+    "\"JOIN\"",
     "\"=\"",
     "\"!=\"",
     "\">\"",

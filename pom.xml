@@ -2,8 +2,8 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
-	<artifactId>elasticsearch-rest-command</artifactId>
-	<version>0.3.0</version>
+	<artifactId>rest-command</artifactId>
+	<version>0.3.1</version>
 	<packaging>jar</packaging>
 
 	<name>elasticsearch-rest-command</name>

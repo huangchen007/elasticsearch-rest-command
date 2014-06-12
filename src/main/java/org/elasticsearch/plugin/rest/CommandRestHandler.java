@@ -35,6 +35,7 @@ import org.elasticsearch.rest.support.RestUtils;
 import com.everdata.command.CommandException;
 import com.everdata.command.ReportResponse;
 import com.everdata.command.Search;
+import com.everdata.command.Search.QueryResponse;
 import com.everdata.parser.AST_Start;
 import com.everdata.parser.CommandParser;
 import com.everdata.parser.ParseException;
@@ -132,9 +133,9 @@ public class CommandRestHandler extends BaseRestHandler {
 			if( request.paramAsBoolean("query", true) ){
 
 				search.executeQuery(
-						new RestBuilderListener<SearchResponse>(channel) {
+						new RestBuilderListener<QueryResponse>(channel) {
 							@Override
-				            public RestResponse buildResponse(SearchResponse result, XContentBuilder builder) throws Exception {
+				            public RestResponse buildResponse(QueryResponse result, XContentBuilder builder) throws Exception {
 								Search.buildQuery(from, builder, result, logger);
 				                return new BytesRestResponse(result.status(), builder);
 				            }

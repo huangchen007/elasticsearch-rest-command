@@ -19,7 +19,7 @@ public class AST_Start extends SimpleNode {
 
 	static public void dumpWithLogger(ESLogger logger, SimpleNode node, String prefix) {
 		
-		logger.info(prefix + node.toString());
+		logger.debug(prefix + node.toString());
 		if (node.children != null) {
 			for (int i = 0; i < node.children.length; ++i) {
 				dumpWithLogger(logger, (SimpleNode) node.children[i], prefix + " ");				

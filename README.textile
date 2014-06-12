@@ -1,5 +1,6 @@
-v0.3.0(2014年6月5日)
+v0.3.1(2014年6月11日)
 支持everdata-0.4.0
+search 支持多个haschild选项，这样支持针对parent表进行多个haschild条件的查询
 新增stats命令去重dc统计选项
     如：sourcetype=twitter | stats dc(msisdn) by domain
 修复统计报表中字段展示的bug
@@ -13,7 +14,7 @@ stats命令增加了limit选项
     例如 stats limit=50 sum(upflow) by user
 index参数    
     过滤不存在的index，不然查询会失败
-    如果所有指定的index都不存在，那么将在《所有的index》针对条件进行查询    
+    如果所有指定的index都不存在，那么将在“所有的index”针对条件进行查询    
 
 v0.2.1(2014年4月29日)
 修改了输出的json格式化，更加易读和简单。

@@ -4,28 +4,30 @@ package com.everdata.parser;
 public interface CommandParserTreeConstants
 {
   public int JJT_START = 0;
-  public int JJT_SORT = 1;
-  public int JJT_REGEX = 2;
-  public int JJT_STATS = 3;
-  public int JJT_STATSFUNC = 4;
-  public int JJT_EVALEXPR = 5;
-  public int JJT_DELETE = 6;
-  public int JJT_TOP = 7;
-  public int JJT_IDENTLIST = 8;
-  public int JJT_TOPOPTION = 9;
-  public int JJT_BYIDENTLIST = 10;
-  public int JJT_SEARCH = 11;
-  public int JJT_OREXPR = 12;
-  public int JJT_ANDEXPR = 13;
-  public int JJT_UNARYEXPR = 14;
-  public int JJT_SEARCHOPTION = 15;
-  public int JJT_PREDICATEEXPRESSION = 16;
-  public int JJT_TERMEXPRESSION = 17;
-  public int JJT_COMPARISONEXPRESSION = 18;
+  public int JJT_JOIN = 1;
+  public int JJT_SORT = 2;
+  public int JJT_REGEX = 3;
+  public int JJT_STATS = 4;
+  public int JJT_STATSFUNC = 5;
+  public int JJT_EVALEXPR = 6;
+  public int JJT_DELETE = 7;
+  public int JJT_TOP = 8;
+  public int JJT_IDENTLIST = 9;
+  public int JJT_TOPOPTION = 10;
+  public int JJT_BYIDENTLIST = 11;
+  public int JJT_SEARCH = 12;
+  public int JJT_OREXPR = 13;
+  public int JJT_ANDEXPR = 14;
+  public int JJT_UNARYEXPR = 15;
+  public int JJT_SEARCHOPTION = 16;
+  public int JJT_PREDICATEEXPRESSION = 17;
+  public int JJT_TERMEXPRESSION = 18;
+  public int JJT_COMPARISONEXPRESSION = 19;
 
 
   public String[] jjtNodeName = {
     "_Start",
+    "_Join",
     "_Sort",
     "_Regex",
     "_Stats",
@@ -46,4 +48,4 @@ public interface CommandParserTreeConstants
     "_ComparisonExpression",
   };
 }
-/* JavaCC - OriginalChecksum=a0860d0c17f8f50c9b5614c5b5d7f442 (do not edit this line) */
+/* JavaCC - OriginalChecksum=ee4da42212be56d346b859a6ee8863ae (do not edit this line) */

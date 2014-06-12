@@ -191,6 +191,7 @@ TOKEN: /* Command Keywords */
   | < K_AS: "AS" >
   | < K_REGEX: "REGEX" >
   | < K_SORT: "SORT" >
+  | < K_JOIN: "JOIN" >
 }
 
 TOKEN: /* Operators */
@@ -263,7 +264,7 @@ AST_Start Start()         : {/*@bgen(jjtree) _Start */
   (
   <O_VERTICAL> 
   
-  ( TopStatement() | StatsStatement() | SortStatement()) 
+  ( JoinStatement() | TopStatement() | StatsStatement() | SortStatement()) 
   
   )*
   <EOF>/*@bgen(jjtree)*/
@@ -316,6 +317,38 @@ AST_Start Start()         : {/*@bgen(jjtree) _Start */
   |
   DeleteStatement()
   */
+
+/*join <field-list> [ subsearch ]*/
+void JoinStatement()       :{/*@bgen(jjtree) _Join */
+  AST_Join jjtn000 = new AST_Join(JJT_JOIN);
+  boolean jjtc000 = true;
+  jjtree.openNodeScope(jjtn000);
+/*@egen*/}
+{/*@bgen(jjtree) _Join */
+  try {
+/*@egen*/
+  <K_JOIN> FieldList() <O_LPAREN> SearchStatement() <O_RPAREN>/*@bgen(jjtree)*/
+  } catch (Throwable jjte000) {
+    if (jjtc000) {
+      jjtree.clearNodeScope(jjtn000);
+      jjtc000 = false;
+    } else {
+      jjtree.popNode();
+    }
+    if (jjte000 instanceof RuntimeException) {
+      throw (RuntimeException)jjte000;
+    }
+    if (jjte000 instanceof ParseException) {
+      throw (ParseException)jjte000;
+    }
+    throw (Error)jjte000;
+  } finally {
+    if (jjtc000) {
+      jjtree.closeNodeScope(jjtn000, true);
+    }
+  }
+/*@egen*/
+}
 
 /*sort [<count>] (<sort-by-clause>)+ [desc]*/
 void SortStatement()       :{/*@bgen(jjtree) _Sort */

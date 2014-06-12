@@ -26,7 +26,7 @@ public class AST_Search extends SimpleNode {
 	HashMap<Integer, Object> options = null;
 	FilterBuilder filterBuilder = null;
 	QueryBuilder queryBuilder = null;
-	
+	BoolQueryBuilder joinFieldsQuery = null;
 	List<AST_OrExpr> childExpressions = new ArrayList<AST_OrExpr>();
 	AST_OrExpr parentExpression = null;
 	
@@ -389,22 +389,32 @@ public class AST_Search extends SimpleNode {
 			allQuerys.add(timeFilter);
 		}		
 		
+		if(joinFieldsQuery != null){
+			allQuerys.add(joinFieldsQuery);
+		}
+		
 		if( allQuerys.size() == 0)
 			queryBuilder = null;
 		else if( allQuerys.size() == 1)
 			queryBuilder = allQuerys.get(0);
 		else{
+			queryBuilder = QueryBuilders.boolQuery();
 			for(QueryBuilder q: allQuerys){
-				queryBuilder = QueryBuilders.boolQuery().must(q);
+				queryBuilder = ((BoolQueryBuilder)queryBuilder).must(q);
 			}
 		}
 		
-		return queryBuilder;
-		
-
+		return queryBuilder;		
 	}
+	
+	public void setJoinFieldsQuery(BoolQueryBuilder joinFieldsQuery){
+		this.joinFieldsQuery = joinFieldsQuery;
+	}
+	
 	public QueryBuilder getQueryBuilder() throws CommandException{
-		return (getInternalQuery() == null) ? QueryBuilders.matchAllQuery() : QueryBuilders.constantScoreQuery( getInternalQuery() );
+		
+		return (getInternalQuery() == null)? QueryBuilders.matchAllQuery(): QueryBuilders.constantScoreQuery( getInternalQuery() );
+	
 	}
 
 }

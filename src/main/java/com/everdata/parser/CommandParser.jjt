@@ -187,6 +187,7 @@ TOKEN: /* Command Keywords */
   | < K_AS: "AS" >
   | < K_REGEX: "REGEX" >
   | < K_SORT: "SORT" >
+  | < K_JOIN: "JOIN" >
 }
 
 TOKEN: /* Operators */
@@ -253,7 +254,7 @@ AST_Start Start() #_Start : {}
   (
   <O_VERTICAL> 
   
-  ( TopStatement() | StatsStatement() | SortStatement()) 
+  ( JoinStatement() | TopStatement() | StatsStatement() | SortStatement()) 
   
   )*
   <EOF>
@@ -281,6 +282,12 @@ AST_Start Start() #_Start : {}
   |
   DeleteStatement()
   */
+
+/*join <field-list> [ subsearch ]*/
+void JoinStatement() #_Join:{}
+{
+  <K_JOIN> FieldList() <O_LPAREN> SearchStatement() <O_RPAREN>
+}
 
 /*sort [<count>] (<sort-by-clause>)+ [desc]*/
 void SortStatement() #_Sort:{}
