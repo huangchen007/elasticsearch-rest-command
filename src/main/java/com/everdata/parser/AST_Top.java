@@ -61,14 +61,14 @@ public class AST_Top extends SimpleNode {
 		
 		traverseAST();
 		
-		TermsBuilder local = Search.newTerms("top", Integer.parseInt(options.get(Option.LIMIT)), topFields);
+		TermsBuilder local = Search.newTermsAgg("top", Integer.parseInt(options.get(Option.LIMIT)), topFields);
 		
 		if(options.get(Option.MINCOUNT) != null){
 			local.minDocCount(Long.parseLong(options.get(Option.MINCOUNT)));
 		}
 		
 		if(bucketFields.length > 0){			
-			local = Search.newTerms("topWithBy", Integer.parseInt(options.get(Option.LIMIT)), bucketFields).subAggregation(local);
+			local = Search.newTermsAgg("topWithBy", Integer.parseInt(options.get(Option.LIMIT)), bucketFields).subAggregation(local);
 		}
 		
 		return local;

@@ -137,7 +137,7 @@ public class CommandRestHandler extends BaseRestHandler {
 							@Override
 				            public RestResponse buildResponse(QueryResponse result, XContentBuilder builder) throws Exception {
 								Search.buildQuery(from, builder, result, logger);
-				                return new BytesRestResponse(result.status(), builder);
+				                return new BytesRestResponse(RestStatus.OK, builder);
 				            }
 						}, from, size);
 			}else{

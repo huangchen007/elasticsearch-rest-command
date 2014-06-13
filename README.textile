@@ -1,8 +1,12 @@
-v0.3.1(2014年6月11日)
-支持everdata-0.4.0
+v0.3.2(2014年6月11日)
+仅支持everdata-0.4.0
 search 支持多个haschild选项，这样支持针对parent表进行多个haschild条件的查询
 新增stats命令去重dc统计选项
     如：sourcetype=twitter | stats dc(msisdn) by domain
+新增join命令
+    支持join <field-list> ( subsearch )
+新增lookup命令
+    
 修复统计报表中字段展示的bug
 
 v0.2.4(2014年5月20日)

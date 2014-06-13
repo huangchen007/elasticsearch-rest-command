@@ -11,6 +11,7 @@ import org.elasticsearch.rest.BytesRestResponse;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
+import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.search.SearchResponse;
@@ -26,11 +27,13 @@ import static org.elasticsearch.rest.RestRequest.Method.GET;
 import static org.elasticsearch.rest.RestRequest.Method.POST;
 
 import org.elasticsearch.rest.BaseRestHandler;
+import org.elasticsearch.rest.action.support.RestBuilderListener;
 import org.elasticsearch.rest.support.RestUtils;
 
 import com.everdata.command.CommandException;
 import com.everdata.command.ReportResponse;
 import com.everdata.command.Search;
+import com.everdata.command.Search.QueryResponse;
 import com.everdata.parser.AST_Start;
 import com.everdata.parser.CommandParser;
 import com.everdata.parser.ParseException;
@@ -53,12 +56,12 @@ public class JobRestHandler extends BaseRestHandler {
 		             }
 		           });
 	
-	LoadingCache<String, SearchResponse> queryResultCache = CacheBuilder.newBuilder()
+	LoadingCache<String, QueryResponse> queryResultCache = CacheBuilder.newBuilder()
 		       .maximumSize(2000)
 		       .expireAfterAccess(20, TimeUnit.MINUTES)
 		       .build(
-		           new CacheLoader<String, SearchResponse>() {
-		             public SearchResponse load(String jobidWithFromSize) throws CommandException {
+		           new CacheLoader<String, QueryResponse>() {
+		             public QueryResponse load(String jobidWithFromSize) throws CommandException {
 		            	 //fast failure mode	快速失败模式
 		               throw new CommandException("不存在的key，确认有这个id吗？");
 		             }
@@ -194,7 +197,7 @@ public class JobRestHandler extends BaseRestHandler {
 		if(type.equalsIgnoreCase("query")){
 			
 			try{
-				SearchResponse cacheResult = queryResultCache.get(retId);
+				QueryResponse cacheResult = queryResultCache.get(retId);
 				sendQuery(from, request, channel, cacheResult);
 			} catch (ExecutionException e) {
 				Search search;
@@ -207,10 +210,10 @@ public class JobRestHandler extends BaseRestHandler {
 				
 				//快速失败模式，load key
 				
-				search.executeQuery(
-						new ActionListener<SearchResponse>() {
+				search.executeQuery(						
+						new ActionListener<QueryResponse>() {
 							@Override
-							public void onResponse(SearchResponse response) {								
+							public void onResponse(QueryResponse response) {								
 								queryResultCache.put(retId, response);								
 								sendQuery(from, request, channel, response);
 							}
@@ -289,12 +292,12 @@ public class JobRestHandler extends BaseRestHandler {
 	}
 	
 	
-	private void sendQuery(int from, final RestRequest request,final RestChannel channel, SearchResponse response){
+	private void sendQuery(int from, final RestRequest request,final RestChannel channel, QueryResponse response){
 		XContentBuilder builder;
 		try {
 			builder = channel.newBuilder();								
 			Search.buildQuery(from, builder, response, logger);								
-			channel.sendResponse(new BytesRestResponse(response.status(), builder));
+			channel.sendResponse(new BytesRestResponse(RestStatus.OK, builder));
 		} catch (IOException e) {
 			sendFailure(request, channel, e);
 		}

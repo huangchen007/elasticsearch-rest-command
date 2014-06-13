@@ -4,11 +4,13 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.Set;
 
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest;
@@ -47,6 +49,7 @@ import org.elasticsearch.search.aggregations.metrics.MetricsAggregation.SingleVa
 import org.elasticsearch.search.aggregations.metrics.valuecount.ValueCount;
 import org.elasticsearch.search.sort.SortOrder;
 
+import com.everdata.command.JoinQuery.Join;
 import com.everdata.parser.AST_Join;
 import com.everdata.parser.AST_Search;
 import com.everdata.parser.AST_Sort;
@@ -57,19 +60,14 @@ import com.everdata.parser.Node;
 
 public class Search {
 
-	public static class Join {
-		String[] fromFields;
-		AST_Search searchTree;
-
-		public Join(String[] fields, AST_Search search) {
-			this.fromFields = fields;
-			this.searchTree = search;
-		}
-	}
+	
 	
 	public static class QueryResponse{
 		public long took, totalHits,failedShards, successfulShards, totalShards;
-		public ArrayList<Map<String, Object>> searchHits = new ArrayList<Map<String, Object>>();
+		public ArrayList<Map<String, Object>> searchHits = null;
+		public QueryResponse(int capcity){
+			searchHits = new ArrayList<Map<String, Object>>(capcity);
+		}
 	}
 
 	public static final int QUERY = 0;
@@ -90,7 +88,7 @@ public class Search {
 
 	// public Function countField = null;
 
-	private static String[] parseIndices(AST_Search searchTree, Client client) {
+	static String[] parseIndices(AST_Search searchTree, Client client) {
 		String[] indices = Strings.EMPTY_ARRAY;
 		
 
@@ -115,7 +113,7 @@ public class Search {
 
 	}
 	
-	private static String[] parseTypes(AST_Search searchTree){
+	static String[] parseTypes(AST_Search searchTree){
 		String[] sourceTypes = Strings.EMPTY_ARRAY;
 		
 		if (searchTree.getOption(Option.SOURCETYPE) != null)
@@ -211,67 +209,8 @@ public class Search {
 		}
 
 	}
-
-	public static void executeJoin(Join join,
-			ArrayList<Map<String, Object>> fromFieldsValue, Client client, ESLogger logger)
-			throws CommandException {
-				
-		String[] indices = parseIndices(join.searchTree, client);
-		String[] sourceTypes = parseTypes(join.searchTree);
-				
-		// 生成joinFieldsQuery
-		BoolQueryBuilder joinFieldsQuery = QueryBuilders.boolQuery();
-		
-		for(Map<String, Object> row : fromFieldsValue){
-			QueryBuilder rowQuery;
-			if(join.fromFields.length == 1){
-				rowQuery = QueryBuilders.termQuery(join.fromFields[0], row.get(join.fromFields[0]));
-			}else{
-				rowQuery = QueryBuilders.boolQuery();
-				for(int i = 0; i < join.fromFields.length; i++){
-					((BoolQueryBuilder)rowQuery).must(QueryBuilders.termQuery(join.fromFields[i], row.get(join.fromFields[i])));
-				}
-			}
-			
-			joinFieldsQuery.should(rowQuery);
-		}
-
-		
-		// 生成QueryBuilder
-		join.searchTree.setJoinFieldsQuery(joinFieldsQuery);
-		QueryBuilder joinQueryBuilder = join.searchTree.getQueryBuilder();
-
-		// 生成
-		SearchRequestBuilder joinSearch = client.prepareSearch(indices).setTypes(sourceTypes).setQuery(joinQueryBuilder);
-		
-		dumpSearchScriptWhenDebug(joinSearch, logger);
-		
-		SearchHits joinHits = joinSearch.execute().actionGet().getHits();
-		//search hits To hashmap
-		HashMap<String, SearchHit> joinMap = new HashMap<String, SearchHit>();
-		
-		Iterator<SearchHit> iterator = joinHits.iterator();
-		while(iterator.hasNext()){
-			SearchHit hit = iterator.next();
-			StringBuilder key = new StringBuilder();
-			for(String field : join.fromFields){
-				key.append(hit.sourceAsMap().get(field));
-			}
-			joinMap.put(key.toString(), hit);
-		}
-		
-		for(Map<String, Object> row : fromFieldsValue){
-			StringBuilder key = new StringBuilder();
-			for(String field : join.fromFields){
-				key.append(row.get(field));
-			}
-			
-			SearchHit hit = joinMap.get(key.toString());
-			
-			row.putAll(hit.sourceAsMap());
-		}
-		
-	}
+	
+	
 
 	private void addSortToQuery(String field) {
 		if (field == null) {
@@ -287,53 +226,42 @@ public class Search {
 	public static void buildQuery(int from, XContentBuilder builder,
 			QueryResponse response, ESLogger logger) throws IOException {
 
-		HashSet<String> fields = new HashSet<String>();
-
+		
 		logger.info("Query took in millseconds:" + response.took);
-
-		// create fields head
-
-		SearchHit hit = null;
-
-		Iterator<SearchHit> iterator = hits.iterator();
-		while (iterator.hasNext()) {
-			hit = iterator.next();
-			fields.addAll(hit.sourceAsMap().keySet());
-		}
+		
 
 		// 格式化结果后输出
 
 		builder.startObject();
-		builder.field("took", response.getTookInMillis());
-		builder.field("total", hits.getTotalHits());
+		builder.field("took", response.took);
+		builder.field("total", response.totalHits);
 		builder.field("from", from);
 
-		builder.field("_shard_failed", response.getFailedShards());
-		builder.field("_shard_successful", response.getSuccessfulShards());
-		builder.field("_shard_total", response.getTotalShards());
+		builder.field("_shard_failed", response.failedShards);
+		builder.field("_shard_successful", response.successfulShards);
+		builder.field("_shard_total", response.totalShards);
 		builder.startArray("fields");
-		builder.value("_id");
-		builder.value("_index");
-		builder.value("_type");
+		
+		if(response.searchHits.size() == 0){
+			builder.endArray();
+			return;
+		}
+		
+		List<String> fields = new ArrayList<String>(response.searchHits.get(0).keySet());
+		java.util.Collections.sort(fields);
 		for (String key : fields) {
 			builder.value(key);
 		}
 		builder.endArray();
+			
 
 		builder.startArray("rows");
-		iterator = hits.iterator();
-		while (iterator.hasNext()) {
-			hit = iterator.next();
+		for(Map<String, Object> _row : response.searchHits){
+			
 			builder.startArray();
-			builder.value(hit.id());
-			builder.value(hit.index());
-			builder.value(hit.type());
 
-			for (String key : fields) {
-				if (hit.isSourceEmpty())
-					builder.value("");
-				else
-					builder.value(hit.sourceAsMap().get(key));
+			for (String key : fields) {				
+				builder.value(_row.get(key));
 			}
 
 			builder.endArray();
@@ -544,7 +472,7 @@ public class Search {
 	}
 	
 	public void executeQuery(final ActionListener<QueryResponse> listener,
-			int from, int size, final Join[] joins, String... sortFields) {
+			int from, final int size, String... sortFields) {
 
 		// jobHandler，执行期才知道要排序
 		for (String field : sortFields) {
@@ -554,7 +482,7 @@ public class Search {
 
 		querySearch.setSearchType(SearchType.QUERY_THEN_FETCH).setFrom(from)
 				.setSize(size);
-		dumpSearchScriptWhenDebug(querySearch, logger);
+		dumpSearchScript(querySearch, logger);
 		
 		
 		querySearch.execute(new ActionListener<SearchResponse>(){
@@ -563,7 +491,7 @@ public class Search {
 			public void onResponse(SearchResponse response) {
 				
 				long milli = System.currentTimeMillis();
-				QueryResponse queryResponse = new QueryResponse();
+				QueryResponse queryResponse = new QueryResponse(size);
 				
 				
 				queryResponse.totalHits = response.getHits().getTotalHits();
@@ -574,18 +502,17 @@ public class Search {
 				
 				while (iterator.hasNext()) {
 					SearchHit _hit = iterator.next();
-					HashMap<String, Object> hit = new HashMap<String, Object>();
+					Map<String, Object> hit = _hit.sourceAsMap();
 					hit.put("_id", _hit.id());
 					hit.put("_index", _hit.index());
 					hit.put("_type", _hit.type());
-	
-					hit.putAll(_hit.sourceAsMap());					
+					
 					queryResponse.searchHits.add(hit);					
 				}
 				
-				for(Join join: joins){
+				for(Join join: joinSearchs){
 					try {
-						executeJoin(join, queryResponse.searchHits, client, logger);
+						JoinQuery.executeJoin(join, size*2, queryResponse.searchHits, client, logger);
 					} catch (CommandException e) {
 						logger.error("executeJoin", e);
 						onFailure(e);
@@ -625,7 +552,7 @@ public class Search {
 
 		timelineSearch.addAggregation(timeline);
 
-		dumpSearchScriptWhenDebug(timelineSearch, logger);
+		dumpSearchScript(timelineSearch, logger);
 		timelineSearch.execute(listener);
 
 	}
@@ -633,11 +560,11 @@ public class Search {
 	public void executeReport(final ActionListener<SearchResponse> listener,
 			int from, int size) {
 		reportSearch.setSearchType(SearchType.COUNT);
-		dumpSearchScriptWhenDebug(reportSearch, logger);
+		dumpSearchScript(reportSearch, logger);
 		reportSearch.execute(listener);
 	}
 
-	static private void dumpSearchScriptWhenDebug(SearchRequestBuilder search, ESLogger logger) {
+	static void dumpSearchScript(SearchRequestBuilder search, ESLogger logger) {
 
 		try {
 			XContentBuilder builder = XContentFactory
@@ -662,7 +589,7 @@ public class Search {
 				.setSize(200).setScroll(TimeValue.timeValueMinutes(10))
 				.execute().actionGet();
 
-		dumpSearchScriptWhenDebug(querySearch, logger);
+		dumpSearchScript(querySearch, logger);
 
 		new Thread(new Runnable() {
 
@@ -720,7 +647,7 @@ public class Search {
 
 	}
 
-	public static TermsBuilder newTerms(String name, int size, String[] fields) {
+	public static TermsBuilder newTermsAgg(String name, int size, String[] fields) {
 		TermsBuilder agg = AggregationBuilders.terms(name).size(size);
 		if (fields.length == 1)
 			agg.field(fields[0]);

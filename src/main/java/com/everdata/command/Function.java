@@ -19,9 +19,9 @@ public class Function {
 			return func.as;
 		}else{
 			StringBuilder statField = new StringBuilder(func.name);
-			statField.append("(");
+			statField.append("-");
 			statField.append(func.field);
-			statField.append(")");
+			
 			return statField.toString();
 		}
 	}

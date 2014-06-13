@@ -138,7 +138,7 @@ public class AST_Stats extends SimpleNode {
 		AbstractAggregationBuilder function = null;
 
 		if (bucketFields.length > 0) {
-			buckets = Search.newTerms("statsWithBy", limit, bucketFields);
+			buckets = Search.newTermsAgg("statsWithBy", limit, bucketFields);
 			buckets.minDocCount(mincount);			
 		}
 

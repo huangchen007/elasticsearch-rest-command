@@ -25,20 +25,21 @@ public class CommandParser/*@bgen(jjtree)*/implements CommandParserTreeConstants
     ArrayList<Node> container = search;
 
     for (Node child : tree.getChildren()) {
-                                if (child instanceof AST_Search){
-                                        container.add(child);
+      if (child instanceof AST_Search){
+        container.add(child);
+      }else if (child instanceof AST_Join){
+        container.add(child);
+      }else if (child instanceof AST_Stats){
+        container = report;
+        container.add(child);
+      }else if (child instanceof AST_Top){
+        container = report;
+        container.add(child);
+      }else if (child instanceof AST_Sort){
+        container.add(child);
+      }
 
-                                }else if (child instanceof AST_Stats){
-                                    container = report;
-                                        container.add(child);
-                                }else if (child instanceof AST_Top){
-                                    container = report;
-                                        container.add(child);
-                                }else if (child instanceof AST_Sort){
-                                        container.add(child);
-                                }
-
-                        }
+    }
   }
 
   public ArrayList<Node> getSearchCommandList(){
