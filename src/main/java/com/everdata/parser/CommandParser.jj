@@ -14,10 +14,11 @@
 options {
                
                            
-  IGNORE_CASE = true;
+  IGNORE_CASE = false;
   STATIC = false;
   JAVA_UNICODE_ESCAPE= true;
 }
+
 
 /*****************************************************************************\
  * Parser Class
@@ -60,10 +61,9 @@ public class CommandParser/*@bgen(jjtree)*/implements CommandParserTreeConstants
       }else if (child instanceof AST_Stats){
         container = report;
         container.add(child);
-      }else if (child instanceof AST_Top){
-        container = report;
-        container.add(child);
       }else if (child instanceof AST_Sort){
+        container.add(child);
+      }else if (child instanceof AST_Table){
         container.add(child);
       }
 
@@ -156,6 +156,7 @@ TOKEN: /* Command Keywords */
   | < K_CREATE: "CREATE" >
   | < K_DELETE: "DELETE" >
   | < K_DESC: "DESC" >
+  | < K_ASC: "ASC" >
   | < K_DESCRIBE: "DESCRIBE" >
   | < K_DISTINCT: "DISTINCT" >
   | < K_DROP: "DROP" >
@@ -193,6 +194,9 @@ TOKEN: /* Command Keywords */
   | < K_REGEX: "REGEX" >
   | < K_SORT: "SORT" >
   | < K_JOIN: "JOIN" >
+  | < K_SPAN: "SPAN" >
+  | < K_TIMESPAN: "TIMESPAN" >
+  | < K_COUNTORDER: "COUNTORDER" >
 }
 
 TOKEN: /* Operators */
@@ -265,7 +269,7 @@ AST_Start Start()         : {/*@bgen(jjtree) _Start */
   (
   <O_VERTICAL> 
   
-  ( JoinStatement() | TopStatement() | StatsStatement() | SortStatement()) 
+  ( JoinStatement() | StatsStatement() | SortStatement() | TableStatement() ) 
   
   )*
   <EOF>/*@bgen(jjtree)*/
@@ -299,25 +303,37 @@ AST_Start Start()         : {/*@bgen(jjtree) _Start */
 
 
   
-/*|
-  LOOKAHEAD(2) CreateTableStmt()
-  |
-  CreateIndexStmt()
-  |
-  LOOKAHEAD(2) DropTableStmt()
-  |
-  DropIndexStmt()
-  |
-  DescribeStatement()
-  |
-  InsertStatement()
-  |
-  SelectStatement()
-  |
-  UpdateStatement()
-  |
-  DeleteStatement()
-  */
+/* table <wc-field-list> */
+void TableStatement()        :{/*@bgen(jjtree) _Table */
+  AST_Table jjtn000 = new AST_Table(JJT_TABLE);
+  boolean jjtc000 = true;
+  jjtree.openNodeScope(jjtn000);
+/*@egen*/}
+{/*@bgen(jjtree) _Table */
+  try {
+/*@egen*/
+  <K_TABLE> FieldList()/*@bgen(jjtree)*/
+  } catch (Throwable jjte000) {
+    if (jjtc000) {
+      jjtree.clearNodeScope(jjtn000);
+      jjtc000 = false;
+    } else {
+      jjtree.popNode();
+    }
+    if (jjte000 instanceof RuntimeException) {
+      throw (RuntimeException)jjte000;
+    }
+    if (jjte000 instanceof ParseException) {
+      throw (ParseException)jjte000;
+    }
+    throw (Error)jjte000;
+  } finally {
+    if (jjtc000) {
+      jjtree.closeNodeScope(jjtn000, true);
+    }
+  }
+/*@egen*/
+}
 
 /*join <field-list> [ subsearch ]*/
 void JoinStatement()       :{/*@bgen(jjtree) _Join */
@@ -360,13 +376,20 @@ void SortStatement()       :{/*@bgen(jjtree) _Sort */
 {/*@bgen(jjtree) _Sort */
   try {
 /*@egen*/
-  <K_SORT> [<S_INTEGER>{jjtn000.count = Integer.parseInt(token.image);}] <S_IDENTIFIER>{jjtn000.sortFields.add(token.image);} (<O_COMMA> <S_IDENTIFIER>{jjtn000.sortFields.add(token.image);})* [<K_DESC>{jjtn000.desc = true;}]/*@bgen(jjtree)*/
+  <K_SORT> [<S_INTEGER>{jjtn000.count = Integer.parseInt(token.image);}] 
+  <S_IDENTIFIER> {jjtn000.addField(token.image);} 
+  [<K_DESC>{jjtn000.setDesc(true);} | <K_ASC>{jjtn000.setDesc(false);}]
+
+  (<O_COMMA> 
+  <S_IDENTIFIER>{jjtn000.addField(token.image);}
+  [<K_DESC>{jjtn000.setDesc(true);} | <K_ASC>{jjtn000.setDesc(false);}]
+  )*/*@bgen(jjtree)*/
   } finally {
     if (jjtc000) {
       jjtree.closeNodeScope(jjtn000, true);
     }
   }
-/*@egen*/
+/*@egen*/ 
 }
 
 void RegexStatement()        :{/*@bgen(jjtree) _Regex */
@@ -396,9 +419,13 @@ void StatsStatement()        :{/*@bgen(jjtree) _Stats */
 /*@egen*/
   <K_STATS> 
   [
-  <K_MINCOUNT> <O_EQ> <S_INTEGER>{jjtn000.mincount = Integer.parseInt(token.image);}
+  <K_MINCOUNT> <O_EQ> <S_INTEGER>{jjtn000.mincounts.add(Integer.parseInt(token.image));} (<O_COMMA> <S_INTEGER>{jjtn000.mincounts.add(Integer.parseInt(token.image));})*
   |
-  <K_LIMIT> <O_EQ> <S_INTEGER>  {jjtn000.limit = Integer.parseInt(token.image);}
+  <K_LIMIT> <O_EQ> <S_INTEGER>  {jjtn000.limits.add(Integer.parseInt(token.image));}(<O_COMMA> <S_INTEGER>{jjtn000.limits.add(Integer.parseInt(token.image));})*
+  |
+  <K_SPAN> <O_EQ> <S_INTEGER>  { jjtn000.spans.add(Integer.parseInt(token.image)); }(<O_COMMA> <S_INTEGER>{ jjtn000.spans.add(Integer.parseInt(token.image));})*
+  |
+  <K_TIMESPAN> <O_EQ> <S_IDENTIFIER>  {jjtn000.timespans.add(token.image);}(<O_COMMA> <S_IDENTIFIER>{jjtn000.timespans.add(token.image);})*
   ]
   StatsFunction() ( <O_COMMA>StatsFunction() )* [ ByClause() ]/*@bgen(jjtree)*/
   } catch (Throwable jjte000) {
@@ -430,11 +457,10 @@ void StatsFunction()            :{/*@bgen(jjtree) _StatsFunc */
 /*@egen*/}
 {/*@bgen(jjtree) _StatsFunc */
   try {
-/*@egen*/
-    
+/*@egen*/    
   (
-	<K_COUNT> {jjtn000.func.type = Function.COUNT;}
-	| 
+	  <K_COUNT> {jjtn000.func.type = Function.COUNT;}
+	  | 
     <K_SUM> {jjtn000.func.type = Function.SUM;}
     |
     <K_DC> {jjtn000.func.type = Function.DC;}
@@ -454,7 +480,8 @@ void StatsFunction()            :{/*@bgen(jjtree) _StatsFunc */
   )
   <O_RPAREN>
     
-  [ <K_AS> <S_IDENTIFIER> {jjtn000.func.as = token.image;} ]/*@bgen(jjtree)*/
+  [ <K_AS> <S_IDENTIFIER> {jjtn000.func.as = token.image;} ]
+  [ <K_DESC>{jjtn000.func.order = -1;} | <K_ASC> {jjtn000.func.order = 1;}]/*@bgen(jjtree)*/
   } finally {
     if (jjtc000) {
       jjtree.closeNodeScope(jjtn000, true);
@@ -471,13 +498,14 @@ void EvalExpression()           :{/*@bgen(jjtree) _EvalExpr */
 {/*@bgen(jjtree) _EvalExpr */
   try {
 /*@egen*/
-  <K_EVAL><O_LPAREN> <S_IDENTIFIER>{jjtn000.script = token.image;} <O_RPAREN>/*@bgen(jjtree)*/
+  <K_EVAL><O_LPAREN> <S_QUOTED_STRING>{jjtn000.script = token.image.substring(1, token.image.length() - 1);} <O_RPAREN>/*@bgen(jjtree)*/
   } finally {
     if (jjtc000) {
       jjtree.closeNodeScope(jjtn000, true);
     }
   }
 /*@egen*/ 
+  
 }
 
 void DeleteStatement()         :{/*@bgen(jjtree) _Delete */
@@ -497,36 +525,6 @@ void DeleteStatement()         :{/*@bgen(jjtree) _Delete */
 /*@egen*/
 }
 
-void TopStatement()       : {/*@bgen(jjtree) _Top */
-  AST_Top jjtn000 = new AST_Top(JJT_TOP);
-  boolean jjtc000 = true;
-  jjtree.openNodeScope(jjtn000);
-/*@egen*/}
-{/*@bgen(jjtree) _Top */
-  try {
-/*@egen*/
-  <K_TOP> (LOOKAHEAD(2)TopOption())* FieldList() [ ByClause() ]/*@bgen(jjtree)*/
-  } catch (Throwable jjte000) {
-    if (jjtc000) {
-      jjtree.clearNodeScope(jjtn000);
-      jjtc000 = false;
-    } else {
-      jjtree.popNode();
-    }
-    if (jjte000 instanceof RuntimeException) {
-      throw (RuntimeException)jjte000;
-    }
-    if (jjte000 instanceof ParseException) {
-      throw (ParseException)jjte000;
-    }
-    throw (Error)jjte000;
-  } finally {
-    if (jjtc000) {
-      jjtree.closeNodeScope(jjtn000, true);
-    }
-  }
-/*@egen*/
-}
 
 void FieldList()             : {/*@bgen(jjtree) _IdentList */
   AST_IdentList jjtn000 = new AST_IdentList(JJT_IDENTLIST);
@@ -547,78 +545,32 @@ void FieldList()             : {/*@bgen(jjtree) _IdentList */
 /*@egen*/
 }
 
-void TopOption()             : {/*@bgen(jjtree) _TopOption */
-  AST_TopOption jjtn000 = new AST_TopOption(JJT_TOPOPTION);
-  boolean jjtc000 = true;
-  jjtree.openNodeScope(jjtn000);
-/*@egen*/}
-{/*@bgen(jjtree) _TopOption */
-  try {
-/*@egen*/
+/*
+void TopStatement() #_Top : {}
+{
+  <K_TOP> (LOOKAHEAD(2)TopOption())* FieldList() [ ByClause() ]
+}
+void TopOption() #_TopOption : {}
+{
 
-  <K_COUNTFIELD> <O_EQ> <S_IDENTIFIER>/*@bgen(jjtree)*/
-                                       {
-                                         jjtree.closeNodeScope(jjtn000, true);
-                                         jjtc000 = false;
-                                       }
-/*@egen*/ {jjtn000.opt.type = Option.COUNTFIELD; jjtn000.opt.value = token.image;}
+  <K_COUNTFIELD> <O_EQ> <S_IDENTIFIER> {jjtThis.opt.type = Option.COUNTFIELD; jjtThis.opt.value = token.image;}
   | 
-  <K_LIMIT> <O_EQ> <S_INTEGER>/*@bgen(jjtree)*/
-                                {
-                                  jjtree.closeNodeScope(jjtn000, true);
-                                  jjtc000 = false;
-                                }
-/*@egen*/  {jjtn000.opt.type = Option.LIMIT; jjtn000.opt.value = token.image;}
+  <K_LIMIT> <O_EQ> <S_INTEGER>  {jjtThis.opt.type = Option.LIMIT; jjtThis.opt.value = token.image;}
   | 
-  <K_OTHERSTR> <O_EQ> <S_IDENTIFIER>/*@bgen(jjtree)*/
-                                      {
-                                        jjtree.closeNodeScope(jjtn000, true);
-                                        jjtc000 = false;
-                                      }
-/*@egen*/  {jjtn000.opt.type = Option.OTHERSTR; jjtn000.opt.value = token.image;}
+  <K_OTHERSTR> <O_EQ> <S_IDENTIFIER>  {jjtThis.opt.type = Option.OTHERSTR; jjtThis.opt.value = token.image;}
   | 
-  <K_PERCENTFIELD> <O_EQ> <S_IDENTIFIER>/*@bgen(jjtree)*/
-                                          {
-                                            jjtree.closeNodeScope(jjtn000, true);
-                                            jjtc000 = false;
-                                          }
-/*@egen*/  {jjtn000.opt.type = Option.PERCENTFIELD; jjtn000.opt.value = token.image;}
+  <K_PERCENTFIELD> <O_EQ> <S_IDENTIFIER>  {jjtThis.opt.type = Option.PERCENTFIELD; jjtThis.opt.value = token.image;}
   | 
-  <K_SHOWCOUNT> <O_EQ> <S_IDENTIFIER>/*@bgen(jjtree)*/
-                                       {
-                                         jjtree.closeNodeScope(jjtn000, true);
-                                         jjtc000 = false;
-                                       }
-/*@egen*/  {jjtn000.opt.type = Option.SHOWCOUNT; jjtn000.opt.value = token.image;}
+  <K_SHOWCOUNT> <O_EQ> <S_IDENTIFIER>  {jjtThis.opt.type = Option.SHOWCOUNT; jjtThis.opt.value = token.image;}
   | 
-  <K_SHOWPERC> <O_EQ> <S_IDENTIFIER>/*@bgen(jjtree)*/
-                                      {
-                                        jjtree.closeNodeScope(jjtn000, true);
-                                        jjtc000 = false;
-                                      }
-/*@egen*/  {jjtn000.opt.type = Option.SHOWPERC; jjtn000.opt.value = token.image;}
+  <K_SHOWPERC> <O_EQ> <S_IDENTIFIER>  {jjtThis.opt.type = Option.SHOWPERC; jjtThis.opt.value = token.image;}
   | 
-  <K_USEOTHER> <O_EQ> <S_IDENTIFIER>/*@bgen(jjtree)*/
-                                     {
-                                       jjtree.closeNodeScope(jjtn000, true);
-                                       jjtc000 = false;
-                                     }
-/*@egen*/ {jjtn000.opt.type = Option.USEOTHER; jjtn000.opt.value = token.image;}
+  <K_USEOTHER> <O_EQ> <S_IDENTIFIER> {jjtThis.opt.type = Option.USEOTHER; jjtThis.opt.value = token.image;}
   |
-  <K_MINCOUNT> <O_EQ> <S_INTEGER>/*@bgen(jjtree)*/
-                                  {
-                                    jjtree.closeNodeScope(jjtn000, true);
-                                    jjtc000 = false;
-                                  }
-/*@egen*/ {jjtn000.opt.type = Option.MINCOUNT; jjtn000.opt.value = token.image;}/*@bgen(jjtree)*/
-  } finally {
-    if (jjtc000) {
-      jjtree.closeNodeScope(jjtn000, true);
-    }
-  }
-/*@egen*/
+  <K_MINCOUNT> <O_EQ> <S_INTEGER> {jjtThis.opt.type = Option.MINCOUNT; jjtThis.opt.value = token.image;}
   
 }
+*/
 
 void ByClause()               : {/*@bgen(jjtree) _ByIdentList */
   AST_ByIdentList jjtn000 = new AST_ByIdentList(JJT_BYIDENTLIST);
@@ -628,8 +580,26 @@ void ByClause()               : {/*@bgen(jjtree) _ByIdentList */
 {/*@bgen(jjtree) _ByIdentList */
   try {
 /*@egen*/
-  <K_BY> <S_IDENTIFIER> {jjtn000.names.add(token.image);}
-  ( <O_COMMA> <S_IDENTIFIER> {jjtn000.names.add(token.image);} )*/*@bgen(jjtree)*/
+  <K_BY> 
+  (
+  <K_EVAL><O_LPAREN> <S_QUOTED_STRING>{jjtn000.addField(token.image.substring(1, token.image.length() - 1));jjtn000.setScript();} <O_RPAREN>     
+  |
+  <S_IDENTIFIER> {jjtn000.addField(token.image);} 
+  )
+  [ <K_COUNTORDER> {jjtn000.setCountOrder();}]
+  [<K_DESC>{jjtn000.setDesc(true);} | <K_ASC>{jjtn000.setDesc(false);}]
+  ( 
+    <O_COMMA> 
+    (      
+      <K_EVAL><O_LPAREN> <S_QUOTED_STRING>{jjtn000.addField(token.image.substring(1, token.image.length() - 1));jjtn000.setScript();} <O_RPAREN> 
+    |
+      <S_IDENTIFIER> {jjtn000.addField(token.image);} 
+    
+    )
+
+    [ <K_COUNTORDER> {jjtn000.setCountOrder();}] 
+    [<K_DESC>{jjtn000.setDesc(true);} | <K_ASC>{jjtn000.setDesc(false);}]
+  )*/*@bgen(jjtree)*/
   } finally {
     if (jjtc000) {
       jjtree.closeNodeScope(jjtn000, true);

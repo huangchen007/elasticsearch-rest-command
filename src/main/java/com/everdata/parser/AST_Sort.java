@@ -5,6 +5,11 @@ package com.everdata.parser;
 import java.util.ArrayList;
 
 public class AST_Sort extends SimpleNode {
+	public static class SortField{
+		public String field;
+		public boolean desc;
+	}
+	
 	public AST_Sort(int id) {
 		super(id);
 	}
@@ -13,9 +18,18 @@ public class AST_Sort extends SimpleNode {
 		super(p, id);
 	}
 	
-	public ArrayList<String> sortFields = new ArrayList<String>();
+	public ArrayList<SortField> sortFields = new ArrayList<SortField>();
 		
-	public boolean desc = false;
+	public void addField(String field){
+		SortField sf = new SortField();
+		sf.field = field;
+		sf.desc = true;
+		sortFields.add(sf);
+	}
+	
+	public void setDesc(boolean desc){
+		sortFields.get(sortFields.size()-1).desc = desc;
+	}
 	
 	public int count = 10000;
 

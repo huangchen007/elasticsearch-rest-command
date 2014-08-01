@@ -11,7 +11,6 @@ import org.elasticsearch.rest.BytesRestResponse;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.search.SearchResponse;
@@ -27,7 +26,6 @@ import static org.elasticsearch.rest.RestRequest.Method.GET;
 import static org.elasticsearch.rest.RestRequest.Method.POST;
 
 import org.elasticsearch.rest.BaseRestHandler;
-import org.elasticsearch.rest.action.support.RestBuilderListener;
 import org.elasticsearch.rest.support.RestUtils;
 
 import com.everdata.command.CommandException;
@@ -137,8 +135,8 @@ public class JobRestHandler extends BaseRestHandler {
 			throw new CommandException("命令为空");
 			
 		}else{
-			if( ! command.toLowerCase().startsWith("search"))
-				command = "search "+command;				
+			if( ! command.startsWith(Search.PREFIX_SEARCH_STRING))
+				command = Search.PREFIX_SEARCH_STRING+" "+command;				
 		}
 		
 		logger.info(command);
@@ -146,12 +144,12 @@ public class JobRestHandler extends BaseRestHandler {
 		return command;
 	}
 	
-	private Search newSearchFromCommandString(String command) throws ParseException, CommandException{
+	private Search newSearchFromCommandString(String command, boolean download) throws ParseException, CommandException, IOException{
 		CommandParser parser = new CommandParser(command);
 		
 		AST_Start.dumpWithLogger(logger, parser.getInnerTree(), "");
 		
-		return new Search(parser, client, logger);
+		return new Search(parser, client, logger, download);
 	}
 
 	@Override
@@ -184,11 +182,11 @@ public class JobRestHandler extends BaseRestHandler {
 		String jobid = request.param("jobid");
 		String type = request.param("type");
 		final int from = request.paramAsInt("from", 0);
-		int size = request.paramAsInt("size", 50);
+		final int size = request.paramAsInt("size", -1);
 		String sortField = request.param("sortField");
 		String interval = request.param("interval");
 		String timelineField = request.param("timelineField");
-		
+		boolean download = request.paramAsBoolean("download", false);
 		Id id = new Id();
 		final String retId = id.append(jobid).append(sortField).append(interval).append(from)
 				.append(size).append(timelineField).toId();
@@ -202,7 +200,7 @@ public class JobRestHandler extends BaseRestHandler {
 			} catch (ExecutionException e) {
 				Search search;
 				try {
-					search = newSearchFromCommandString(commandCache.get(jobid));
+					search = newSearchFromCommandString(commandCache.get(jobid), download);
 				} catch (Exception e1) {
 					sendFailure(request, channel, e1);
 					return;
@@ -228,11 +226,11 @@ public class JobRestHandler extends BaseRestHandler {
 		}else if(type.equalsIgnoreCase("report")){
 			try{
 				ReportResponse cacheResult = reportResultCache.get(retId);
-				sendReport(from, request, channel, cacheResult);
+				sendReport(from, size, request, channel, cacheResult);
 			} catch (ExecutionException e) {
 				Search search;
 				try {
-					search = newSearchFromCommandString(commandCache.get(jobid));
+					search = newSearchFromCommandString(commandCache.get(jobid), download);
 				} catch (Exception e1) {
 					sendFailure(request, channel, e1);
 					return;
@@ -249,7 +247,7 @@ public class JobRestHandler extends BaseRestHandler {
 							public void onResponse(SearchResponse response) {
 								result.response = response;
 								reportResultCache.put(retId, result);
-								sendReport(from, request, channel, result);
+								sendReport(from, size, request, channel, result);
 							}
 	
 							@Override
@@ -265,7 +263,7 @@ public class JobRestHandler extends BaseRestHandler {
 			} catch (ExecutionException e) {
 				Search search;
 				try {
-					search = newSearchFromCommandString(commandCache.get(jobid));
+					search = newSearchFromCommandString(commandCache.get(jobid), download);
 				} catch (Exception e1) {
 					sendFailure(request, channel, e1);
 					return;
@@ -305,11 +303,11 @@ public class JobRestHandler extends BaseRestHandler {
 	
 	
 
-	private void sendReport(int from, final RestRequest request,final RestChannel channel, ReportResponse response){
+	private void sendReport(int from, int size, final RestRequest request,final RestChannel channel, ReportResponse response){
 		XContentBuilder builder;
 		try {
 			builder = channel.newBuilder();								
-			Search.buildReport(from, builder, response, logger);								
+			Search.buildReport(from, size, builder, response, logger);								
 			channel.sendResponse(new BytesRestResponse(response.response.status(), builder));
 		} catch (IOException e) {
 			sendFailure(request, channel, e);

@@ -1,12 +1,73 @@
-v0.3.2(2014年6月11日)
+
+v0.5.3(2014年8月1日)
+为了统一语法，取消采用(+/-)号来标示排序，启用ASC/DESC关键字来做为排序的标识。
+未特殊指定顺序或者倒序的，默认均为倒序。
+如：
+    STATS TIMESPAN=NA,1s COUNT(user) BY MSISDN ASC, postDate
+    SORT user DESC
+
+取消KEYORDER关键字，启用COUNTORDER关键字。默认均为按照字段排序，特殊指定COUNTORDER，才采用结果数排序。注意，仅有分组字段才有COUNTORDER这个特性。
+如：
+    STATS SUM(downflow) [ASC/DESC] BY MSISDN COUNTORDER
+
+
+
+
+
+v0.5.2(2014年7月28日)
+统计命令支持分页。from和size参数
+
+统计命令支持导出。download=true
+    当download=true时，LIMIT参数失效，LIMIT参数的值自动替换成基数估计出来值。
+
+STATS命令中的LIMIT参数生效作用域用逗号分隔
+    如：STATS LIMIT=100,200 SUM(downflow) BY MSISDN, IMEI
+    表示第一个分组域MSISDN的LIMIT的参数是100，第二个分组域IMEI的LIMIT的参数200
+对于分组域为时间类型和间隔分组，LIMIT使用0作为占位符
+    如：STATS LIMIT=0,200 TIMESPAN=1s SUM(downflow) BY postDate, IMEI
+
+
+v0.5.1(2014年7月24日)
+增加可以按照统计字段排序
+    如：SOURCETYPE=twitter | STATS SUM(downflow) [ASC/DESC] BY (+/-)MSISDN KEYORDER
+
+增加可以按照分组字段排序
+    如：SOURCETYPE=twitter | STATS COUNT(user) BY (+/-)MSISDN KEYORDER
+    +表示正序ASC, -表示倒序（默认）。KEYORDER表示使用MSISDN来排序，默认使用结果数来排序
+
+增加可采用间隔作为分组条件，时间字段采用TIMESPAN限制，普通数字字段采用SPAN限制。若间隔字段在后，前面需要使用NA和0来占位。如下所示：
+    如：SOURCETYPE=twitter | STATS TIMESPAN=NA,1s COUNT(user) BY (+/-)MSISDN KEYORDER, postDate
+    如：SOURCETYPE=twitter | STATS SPAN=0,50 COUNT(user) BY (+/-)MSISDN KEYORDER, age
+
+取消对TOP命令的支持，TOP语义可由STATS命令取代
+
+
+v0.4.0(2014年6月30日)
+修改为所有命令都必须大写
+修正返回字段缺少id信息的bug
+
+v0.3.6(2014年6月26日)
+修正返回字段缺少id信息的bug
+
+v0.3.5(2014年6月26日)
+修复join命令netty线程死锁bug
+
+v0.3.4(2014年6月16日)
+修复了新版本中count统计选项不能正确返回结果的bug
+新增table命令，过滤返回字段。
+    如：sourcetype=twitter | table user,comment
+    字段中支持通配符*来过滤，例如：sourcetype=twitter | table user*,comment*
+
+v0.3.2(2014年6月13日)
 仅支持everdata-0.4.0
 search 支持多个haschild选项，这样支持针对parent表进行多个haschild条件的查询
 新增stats命令去重dc统计选项
     如：sourcetype=twitter | stats dc(msisdn) by domain
 新增join命令
     支持join <field-list> ( subsearch )
-新增lookup命令
-    
+    例子：index=comment foo | join user,name (search index=user)
+
+
 修复统计报表中字段展示的bug
 
 v0.2.4(2014年5月20日)

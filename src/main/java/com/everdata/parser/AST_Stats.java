@@ -5,7 +5,14 @@ package com.everdata.parser;
 import java.util.ArrayList;
 
 import org.elasticsearch.search.aggregations.AbstractAggregationBuilder;
+import org.elasticsearch.search.aggregations.AggregationBuilder;
 import org.elasticsearch.search.aggregations.AggregationBuilders;
+import org.elasticsearch.search.aggregations.bucket.histogram.DateHistogram;
+import org.elasticsearch.search.aggregations.bucket.histogram.DateHistogram.Interval;
+import org.elasticsearch.search.aggregations.bucket.histogram.DateHistogramBuilder;
+import org.elasticsearch.search.aggregations.bucket.histogram.Histogram;
+import org.elasticsearch.search.aggregations.bucket.histogram.HistogramBuilder;
+import org.elasticsearch.search.aggregations.bucket.terms.Terms;
 import org.elasticsearch.search.aggregations.bucket.terms.TermsBuilder;
 import org.elasticsearch.search.aggregations.metrics.avg.AvgBuilder;
 import org.elasticsearch.search.aggregations.metrics.cardinality.CardinalityBuilder;
@@ -14,22 +21,38 @@ import org.elasticsearch.search.aggregations.metrics.min.MinBuilder;
 import org.elasticsearch.search.aggregations.metrics.sum.SumBuilder;
 import org.elasticsearch.search.aggregations.metrics.valuecount.ValueCountBuilder;
 
+
 import com.everdata.command.CommandException;
 import com.everdata.command.Field;
 import com.everdata.command.Function;
-import com.everdata.command.Search;
 
 public class AST_Stats extends SimpleNode {
+	public static class Bucket{		
+		public String bucketField;
+		public boolean desc = true;
+		public boolean keyOrder = false;
+		public boolean script = false;
+		//public AbstractAggregationBuilder limitQueryIfBucketIsTerm = null;
+		
+		public int type = 0;
+		public static final int TERM = 0;
+		public static final int HISTOGRAM = 1;
+		public static final int DATEHISTOGRAM = 2;
+	}
 
-	AbstractAggregationBuilder[] internalStats = null;
-	String[] bucketFields = new String[0];
+	private ArrayList<AggregationBuilder<?>> buckets = null;
+	AbstractAggregationBuilder[] internalReport = null;	
+	ArrayList<Bucket> bucketFields = new ArrayList<Bucket>();
 	ArrayList<Function> funcs = new ArrayList<Function>();
-	int mincount = 1;
-	int limit = -1;
+	ArrayList<Integer> mincounts = new ArrayList<Integer>();
+	ArrayList<Integer> limits = new ArrayList<Integer>();
+	ArrayList<String> timespans = new ArrayList<String>();
+	ArrayList<Integer> spans = new ArrayList<Integer>();
 	ArrayList<String> statsFields = new ArrayList<String>();
 	
-	//public Function count = null;
-	public String[] bucketFields(){
+	
+	
+	public ArrayList<Bucket> bucketFields(){
 		return bucketFields; 
 	}
 	
@@ -47,10 +70,6 @@ public class AST_Stats extends SimpleNode {
 	
 	public static AbstractAggregationBuilder newCount(Function func) {
 		ValueCountBuilder count;
-//		if (func.fieldtype == Field.SCRIPT)
-//			count = AggregationBuilders.count(Function.genStatField(func))
-//					.script(func.field);
-//		else
 		count = AggregationBuilders.count(Function.genStatField(func))
 					.field(func.field);
 
@@ -113,37 +132,120 @@ public class AST_Stats extends SimpleNode {
 					.field(func.field);
 		return max;
 	}
+	
+	public static TermsBuilder newTermsBucket(String name, int limit, String field, int mincount, boolean script) {
+		TermsBuilder d = AggregationBuilders.terms(name).size(limit).minDocCount(mincount);
+		
+		return script? d.script(field): d.field(field);
+	}
+	
+	public static DateHistogramBuilder newDateHistogram(String name, String field, String interval, int mincount, boolean script) {
+		DateHistogramBuilder d = AggregationBuilders.dateHistogram(name).interval(new Interval(interval)).minDocCount(mincount);
+		
+		return script? d.script(field): d.field(field);
+	}
 
+	public static HistogramBuilder newHistogram(String name, String field, int interval, int mincount, boolean script) {
+		HistogramBuilder d = AggregationBuilders.histogram(name).field(field).interval(interval).minDocCount(mincount);
+		
+		return script? d.script(field): d.field(field);
+	}
+	
 	private void traverseAST() {
 
 		for (Node n : children) {
 			if (n instanceof AST_ByIdentList) {
-
-				bucketFields = ((AST_ByIdentList) n).getNames();
-
+				AST_ByIdentList byStmt = ((AST_ByIdentList) n);
+				
+				for(int idx = 0; idx < byStmt.byList.size(); idx++ ){
+					
+					
+					Bucket b = new Bucket();
+					
+								
+					b.bucketField = byStmt.byList.get(idx).name;
+					b.desc = byStmt.byList.get(idx).desc;
+					b.keyOrder = byStmt.byList.get(idx).keyorder;
+					b.script = byStmt.byList.get(idx).script;
+					bucketFields.add(b);
+				}
+				
 			} else if (n instanceof AST_StatsFunc) {
 				funcs.add(((AST_StatsFunc) n).func);
-
+				statsFields.add( Function.genStatField( ((AST_StatsFunc) n).func ) );
 			}
 		}
+	}
+	
+	public void setBucketLimit(int idx, long limit){
+		if(buckets.get(idx) instanceof TermsBuilder)
+			((TermsBuilder)buckets.get(idx)).size((int) limit);
 	}
 
 	private AbstractAggregationBuilder[] genAggregation() throws CommandException {
 
 		traverseAST();
 
-		TermsBuilder buckets = null;
-		ArrayList<AbstractAggregationBuilder> stats = new ArrayList<AbstractAggregationBuilder>();
-
-		AbstractAggregationBuilder function = null;
-
-		if (bucketFields.length > 0) {
-			buckets = Search.newTermsAgg("statsWithBy", limit, bucketFields);
-			buckets.minDocCount(mincount);			
-		}
-
-		for (Function func : funcs) {
+		
+		
+		//生成bucket列表
+		buckets = new ArrayList<AggregationBuilder<?>>();
+		
+		for(int i = 0 ; i < bucketFields.size(); i++){
+			AggregationBuilder<?> bucket = null;
+			int mincount = 1;
+			int limit = 20;
+			if(limits.size() > i)
+				limit = limits.get(i);
+			if(mincounts.size() > i)
+				mincount = mincounts.get(i);
 			
+			if( spans.size() > i && spans.get(i) != 0 ){
+				
+				Histogram.Order order;
+				
+				order = (bucketFields.get(i).desc)?(
+					 bucketFields.get(i).keyOrder?Histogram.Order.KEY_DESC: Histogram.Order.COUNT_DESC
+				):(
+					bucketFields.get(i).keyOrder?Histogram.Order.KEY_ASC:Histogram.Order.COUNT_ASC
+				);
+				
+				bucketFields.get(i).type = Bucket.DATEHISTOGRAM;
+				
+				bucket = newHistogram("statsWithBy", bucketFields.get(i).bucketField, spans.get(i), mincount,bucketFields.get(i).script).order(order);
+			}else if( timespans.size() > i && !timespans.get(i).equals("NA") ){
+				
+				DateHistogram.Order order;
+				
+				order =(bucketFields.get(i).desc)?(
+					 bucketFields.get(i).keyOrder?DateHistogram.Order.KEY_DESC:DateHistogram.Order.COUNT_DESC
+				):(
+					bucketFields.get(i).keyOrder?DateHistogram.Order.KEY_ASC: DateHistogram.Order.COUNT_ASC
+				);
+				bucketFields.get(i).type = Bucket.DATEHISTOGRAM;
+				bucket = newDateHistogram("statsWithBy", bucketFields.get(i).bucketField, timespans.get(i), mincount, bucketFields.get(i).script).order(order);
+				
+			}else{
+				Terms.Order order;
+				
+				order = (bucketFields.get(i).desc)?(
+					bucketFields.get(i).keyOrder? Terms.Order.term(false):Terms.Order.count(false)
+				):(
+					bucketFields.get(i).keyOrder?Terms.Order.term(true):Terms.Order.count(true)
+				);
+				bucketFields.get(i).type = Bucket.TERM;
+				//bucketFields.get(i).limitQueryIfBucketIsTerm = newCard(new Function(Function.DC, "LIMIT", bucketFields.get(i).bucketField));
+				bucket = newTermsBucket("statsWithBy", limit, bucketFields.get(i).bucketField, mincount, bucketFields.get(i).script).order(order);				
+			}
+
+			buckets.add(bucket);
+			
+		}
+		ArrayList<AbstractAggregationBuilder> stats = new ArrayList<AbstractAggregationBuilder>();
+		
+		//生成functions列表		
+		for (Function func : funcs) {
+			AbstractAggregationBuilder function = null;
 			switch (func.type) {
 			case Function.COUNT:
 				function = newCount(func);
@@ -160,26 +262,52 @@ public class AST_Stats extends SimpleNode {
 			case Function.MAX:
 				function = newMax(func);
 				break;
-
 			case Function.DC:
 				function = newCard(func);
 				break;
 			}
-			statsFields.add( Function.genStatField(func) );
-
-			if (buckets != null)
-				buckets.subAggregation(function);
-			else{				
-				stats.add(function);
+			stats.add(function);
+			
+			//需要根据统计字段排序
+			if(func.order != 0 && buckets.size() > 0){
+				
+				boolean asc = func.order == 1 ? true:false;
+								
+				switch(bucketFields.get(0).type){
+				case Bucket.TERM :
+					((TermsBuilder)buckets.get(0)).order(Terms.Order.aggregation(Function.genStatField(func), asc));
+					break;
+				case Bucket.HISTOGRAM :
+					((HistogramBuilder)buckets.get(0)).order(Histogram.Order.aggregation(Function.genStatField(func), asc));
+					break;
+				case Bucket.DATEHISTOGRAM :
+					((DateHistogramBuilder)buckets.get(0)).order(DateHistogram.Order.aggregation(Function.genStatField(func), asc));
+					break;
+				}
 			}
-		}
-		
-		if(buckets == null){			
+		}		
+
+		if(buckets.size() == 0){			
 			return stats.toArray(new AbstractAggregationBuilder[stats.size()]);
 		}else{
+			
+			AggregationBuilder<?> prevBucket = null;
+			
+			for(AggregationBuilder<?> bucket: buckets){
+				if(prevBucket == null){
+					for(AbstractAggregationBuilder func: stats){
+						bucket.subAggregation(func);						
+					}
+				}else{
+					bucket.subAggregation(prevBucket);
+				}			
+				prevBucket = bucket;
+			}
+			
 			AbstractAggregationBuilder[] bucketArray = new AbstractAggregationBuilder[1];
-			bucketArray[0] = buckets;
-			return bucketArray;
+			bucketArray[0] = prevBucket;
+			
+			return bucketArray;			
 		}
 
 
@@ -187,10 +315,10 @@ public class AST_Stats extends SimpleNode {
 
 	public AbstractAggregationBuilder[] getStats() throws CommandException {
 
-		if (internalStats == null)
-			internalStats = genAggregation();
+		if (internalReport == null)
+			internalReport = genAggregation();
 
-		return internalStats;
+		return internalReport;
 	}
 
 }

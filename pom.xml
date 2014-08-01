@@ -3,7 +3,7 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<artifactId>rest-command</artifactId>
-	<version>0.3.1</version>
+	<version>0.5.3</version>
 	<packaging>jar</packaging>
 
 	<name>elasticsearch-rest-command</name>
@@ -39,13 +39,24 @@
 			<artifactId>lucene-core</artifactId>
 			<version>4.8.1</version>
 		</dependency>
-
+		<dependency>
+			<groupId>com.fasterxml.jackson.dataformat</groupId>
+			<artifactId>jackson-dataformat-csv</artifactId>
+			<version>2.3.3</version>
+		</dependency>
+		
+		<dependency>
+  			<groupId>com.fasterxml.jackson.dataformat</groupId>
+  			<artifactId>jackson-dataformat-csv</artifactId>
+  			<version>2.3.3</version>
+  			<classifier>sources</classifier>
+		</dependency>
 		<dependency>
 			<groupId>org.elasticsearch</groupId>
 			<artifactId>elasticsearch</artifactId>
 			<version>${elasticsearch.version}</version>
 			<scope>system</scope>
-			<systemPath>C:\Users\huangchen\git\elasticsearch-splunk\target\everdata-0.4.0.jar</systemPath>
+			<systemPath>C:\Users\huangchen\git\elasticsearch-splunk\target\everdata-0.4.1.jar</systemPath>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.httpcomponents</groupId>

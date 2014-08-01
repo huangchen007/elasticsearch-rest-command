@@ -13,10 +13,11 @@
 options {
   MULTI = true;
   NODE_DEFAULT_VOID = true;
-  IGNORE_CASE = true;
+  IGNORE_CASE = false;
   STATIC = false;
   JAVA_UNICODE_ESCAPE= true;
 }
+
 
 /*****************************************************************************\
  * Parser Class
@@ -56,10 +57,9 @@ public class CommandParser {
       }else if (child instanceof AST_Stats){
         container = report;
         container.add(child);
-      }else if (child instanceof AST_Top){
-        container = report;
-        container.add(child);
       }else if (child instanceof AST_Sort){
+        container.add(child);
+      }else if (child instanceof AST_Table){
         container.add(child);
       }
 
@@ -152,6 +152,7 @@ TOKEN: /* Command Keywords */
   | < K_CREATE: "CREATE" >
   | < K_DELETE: "DELETE" >
   | < K_DESC: "DESC" >
+  | < K_ASC: "ASC" >
   | < K_DESCRIBE: "DESCRIBE" >
   | < K_DISTINCT: "DISTINCT" >
   | < K_DROP: "DROP" >
@@ -189,6 +190,9 @@ TOKEN: /* Command Keywords */
   | < K_REGEX: "REGEX" >
   | < K_SORT: "SORT" >
   | < K_JOIN: "JOIN" >
+  | < K_SPAN: "SPAN" >
+  | < K_TIMESPAN: "TIMESPAN" >
+  | < K_COUNTORDER: "COUNTORDER" >
 }
 
 TOKEN: /* Operators */
@@ -255,7 +259,7 @@ AST_Start Start() #_Start : {}
   (
   <O_VERTICAL> 
   
-  ( JoinStatement() | TopStatement() | StatsStatement() | SortStatement()) 
+  ( JoinStatement() | StatsStatement() | SortStatement() | TableStatement() ) 
   
   )*
   <EOF>
@@ -264,25 +268,11 @@ AST_Start Start() #_Start : {}
 
 
   
-/*|
-  LOOKAHEAD(2) CreateTableStmt()
-  |
-  CreateIndexStmt()
-  |
-  LOOKAHEAD(2) DropTableStmt()
-  |
-  DropIndexStmt()
-  |
-  DescribeStatement()
-  |
-  InsertStatement()
-  |
-  SelectStatement()
-  |
-  UpdateStatement()
-  |
-  DeleteStatement()
-  */
+/* table <wc-field-list> */
+void TableStatement() #_Table:{}
+{
+  <K_TABLE> FieldList()
+}
 
 /*join <field-list> [ subsearch ]*/
 void JoinStatement() #_Join:{}
@@ -293,7 +283,14 @@ void JoinStatement() #_Join:{}
 /*sort [<count>] (<sort-by-clause>)+ [desc]*/
 void SortStatement() #_Sort:{}
 {
-  <K_SORT> [<S_INTEGER>{jjtThis.count = Integer.parseInt(token.image);}] <S_IDENTIFIER>{jjtThis.sortFields.add(token.image);} (<O_COMMA> <S_IDENTIFIER>{jjtThis.sortFields.add(token.image);})* [<K_DESC>{jjtThis.desc = true;}]
+  <K_SORT> [<S_INTEGER>{jjtThis.count = Integer.parseInt(token.image);}] 
+  <S_IDENTIFIER> {jjtThis.addField(token.image);} 
+  [<K_DESC>{jjtThis.setDesc(true);} | <K_ASC>{jjtThis.setDesc(false);}]
+
+  (<O_COMMA> 
+  <S_IDENTIFIER>{jjtThis.addField(token.image);}
+  [<K_DESC>{jjtThis.setDesc(true);} | <K_ASC>{jjtThis.setDesc(false);}]
+  )* 
 }
 
 void RegexStatement() #_Regex:{}
@@ -305,19 +302,22 @@ void StatsStatement() #_Stats:{}
 {
   <K_STATS> 
   [
-  <K_MINCOUNT> <O_EQ> <S_INTEGER>{jjtThis.mincount = Integer.parseInt(token.image);}
+  <K_MINCOUNT> <O_EQ> <S_INTEGER>{jjtThis.mincounts.add(Integer.parseInt(token.image));} (<O_COMMA> <S_INTEGER>{jjtThis.mincounts.add(Integer.parseInt(token.image));})*
   |
-  <K_LIMIT> <O_EQ> <S_INTEGER>  {jjtThis.limit = Integer.parseInt(token.image);}
+  <K_LIMIT> <O_EQ> <S_INTEGER>  {jjtThis.limits.add(Integer.parseInt(token.image));}(<O_COMMA> <S_INTEGER>{jjtThis.limits.add(Integer.parseInt(token.image));})*
+  |
+  <K_SPAN> <O_EQ> <S_INTEGER>  { jjtThis.spans.add(Integer.parseInt(token.image)); }(<O_COMMA> <S_INTEGER>{ jjtThis.spans.add(Integer.parseInt(token.image));})*
+  |
+  <K_TIMESPAN> <O_EQ> <S_IDENTIFIER>  {jjtThis.timespans.add(token.image);}(<O_COMMA> <S_IDENTIFIER>{jjtThis.timespans.add(token.image);})*
   ]
   StatsFunction() ( <O_COMMA>StatsFunction() )* [ ByClause() ]
 }
 
 void StatsFunction() #_StatsFunc:{}
-{
-    
+{    
   (
-	<K_COUNT> {jjtThis.func.type = Function.COUNT;}
-	| 
+	  <K_COUNT> {jjtThis.func.type = Function.COUNT;}
+	  | 
     <K_SUM> {jjtThis.func.type = Function.SUM;}
     |
     <K_DC> {jjtThis.func.type = Function.DC;}
@@ -338,11 +338,13 @@ void StatsFunction() #_StatsFunc:{}
   <O_RPAREN>
     
   [ <K_AS> <S_IDENTIFIER> {jjtThis.func.as = token.image;} ]
+  [ <K_DESC>{jjtThis.func.order = -1;} | <K_ASC> {jjtThis.func.order = 1;}]
 }
 
 void EvalExpression() #_EvalExpr:{}
 {
-  <K_EVAL><O_LPAREN> <S_IDENTIFIER>{jjtThis.script = token.image;} <O_RPAREN> 
+  <K_EVAL><O_LPAREN> <S_QUOTED_STRING>{jjtThis.script = token.image.substring(1, token.image.length() - 1);} <O_RPAREN> 
+  
 }
 
 void DeleteStatement() #_Delete:{}
@@ -350,10 +352,6 @@ void DeleteStatement() #_Delete:{}
   <K_DELETE>
 }
 
-void TopStatement() #_Top : {}
-{
-  <K_TOP> (LOOKAHEAD(2)TopOption())* FieldList() [ ByClause() ]
-}
 
 void FieldList() #_IdentList : {}
 {
@@ -362,6 +360,11 @@ void FieldList() #_IdentList : {}
   ( <O_COMMA> <S_IDENTIFIER> {jjtThis.names.add(token.image);} )*
 }
 
+/*
+void TopStatement() #_Top : {}
+{
+  <K_TOP> (LOOKAHEAD(2)TopOption())* FieldList() [ ByClause() ]
+}
 void TopOption() #_TopOption : {}
 {
 
@@ -382,11 +385,30 @@ void TopOption() #_TopOption : {}
   <K_MINCOUNT> <O_EQ> <S_INTEGER> {jjtThis.opt.type = Option.MINCOUNT; jjtThis.opt.value = token.image;}
   
 }
+*/
 
 void ByClause() #_ByIdentList : {}
 {
-  <K_BY> <S_IDENTIFIER> {jjtThis.names.add(token.image);}
-  ( <O_COMMA> <S_IDENTIFIER> {jjtThis.names.add(token.image);} )*
+  <K_BY> 
+  (
+  <K_EVAL><O_LPAREN> <S_QUOTED_STRING>{jjtThis.addField(token.image.substring(1, token.image.length() - 1));jjtThis.setScript();} <O_RPAREN>     
+  |
+  <S_IDENTIFIER> {jjtThis.addField(token.image);} 
+  )
+  [ <K_COUNTORDER> {jjtThis.setCountOrder();}]
+  [<K_DESC>{jjtThis.setDesc(true);} | <K_ASC>{jjtThis.setDesc(false);}]
+  ( 
+    <O_COMMA> 
+    (      
+      <K_EVAL><O_LPAREN> <S_QUOTED_STRING>{jjtThis.addField(token.image.substring(1, token.image.length() - 1));jjtThis.setScript();} <O_RPAREN> 
+    |
+      <S_IDENTIFIER> {jjtThis.addField(token.image);} 
+    
+    )
+
+    [ <K_COUNTORDER> {jjtThis.setCountOrder();}] 
+    [<K_DESC>{jjtThis.setDesc(true);} | <K_ASC>{jjtThis.setDesc(false);}]
+  )*
 }
 
 

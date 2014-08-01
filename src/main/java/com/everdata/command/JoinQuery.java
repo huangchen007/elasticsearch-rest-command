@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.elasticsearch.action.search.SearchRequestBuilder;
+import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.index.query.BoolQueryBuilder;
@@ -71,7 +72,7 @@ public class JoinQuery {
 				
 		
 		if(fromFieldsValue.size() == 0)
-			throw new CommandException("executeJoin error! fromFieldsValue==null 空的前导结果集！");
+			throw new CommandException("executeJoin error! fromFieldsValue==null raw resultset is null！");
 
 		// 生成joinFieldsQuery	
 		HashMap<String, Map<String, Object>> dcRow = distinctRow(fromFieldsValue, join.fromFields);
@@ -79,7 +80,7 @@ public class JoinQuery {
 		BoolQueryBuilder joinFieldsQuery = QueryBuilders.boolQuery();
 		
 		if(join.fromFields.length == 1){			
-			for(Map<String, Object> row : dcRow.values()){				
+			for(Map<String, Object> row : dcRow.values()){
 				joinFieldsQuery.should(QueryBuilders.termQuery(join.fromFields[0], row.get(join.fromFields[0])));
 			}
 			
@@ -104,12 +105,14 @@ public class JoinQuery {
 		SearchRequestBuilder joinSearch = client.prepareSearch(indices).setTypes(sourceTypes).setFrom(0).setSize(size).setQuery(joinQueryBuilder);
 		
 		Search.dumpSearchScript(joinSearch, logger);
-		
-		SearchHits joinHits = joinSearch.execute().actionGet().getHits();
+		SearchResponse joinResponse = joinSearch.execute().actionGet();
+		SearchHits joinHits = joinResponse.getHits();
 		
 		if(	joinHits.getTotalHits() == 0 ){
-			logger.info(String.format("join %s 结果表为空", Arrays.toString(join.fromFields)));
+			logger.info(String.format("join %s resultset is null", Arrays.toString(join.fromFields)));
 			return;
+		}else{
+			logger.info(String.format("join took %d", joinResponse.getTookInMillis()));
 		}
 		
 		//search hits To hashmap，并改名
@@ -138,8 +141,8 @@ public class JoinQuery {
 			changeDuplicateFieldName(needToChangeName, _hit);
 			joinMap.put(key.toString(), _hit);
 		}
-				
 		
+		logger.info(String.format("joinMap size %d", joinMap.size()));
 		
 		for(Map<String, Object> row : fromFieldsValue){
 			StringBuilder key = new StringBuilder();
@@ -148,7 +151,11 @@ public class JoinQuery {
 			}
 			
 			//join动作，求合集
-			row.putAll(joinMap.get(key.toString()).sourceAsMap());
+			SearchHit joinHit = joinMap.get(key.toString());
+			if(joinHit != null)
+				row.putAll(joinHit.sourceAsMap());
+			else
+				logger.debug(String.format("joinMap.get(key.toString()) key = %s", key.toString()));
 		}
 		
 	}

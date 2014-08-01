@@ -2,22 +2,18 @@
 /* JavaCCOptions:MULTI=true,NODE_USES_PARSER=false,VISITOR=false,TRACK_TOKENS=false,NODE_PREFIX=AST,NODE_EXTENDS=,NODE_FACTORY=,SUPPORT_CLASS_VISIBILITY_PUBLIC=true */
 package com.everdata.parser;
 
-import org.elasticsearch.index.query.AndFilterBuilder;
+
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.FilterBuilder;
-import org.elasticsearch.index.query.NotFilterBuilder;
-import org.elasticsearch.index.query.OrFilterBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.FilterBuilders;
 import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.index.query.RangeFilterBuilder;
 import org.elasticsearch.index.query.RangeQueryBuilder;
 
 import com.everdata.command.CommandException;
 import com.everdata.command.Option;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
@@ -107,15 +103,14 @@ public class AST_Search extends SimpleNode {
 				return QueryBuilders.prefixQuery(field, value.substring(0, value.length()-1));
 			else
 				return QueryBuilders.wildcardQuery(field, value);
+		}else if(value.equalsIgnoreCase("")){			
+			return QueryBuilders.constantScoreQuery(FilterBuilders.missingFilter(field));
 		}
 		
 		switch(valueType){
 		case AST_TermExpression.TERM:
 			return QueryBuilders.termQuery(field, value);
-		case AST_TermExpression.PHRASE:
-			/*for(byte b: value.getBytes()){
-				System.out.printf("0x%02X ", b);		        
-			}*/
+		case AST_TermExpression.PHRASE:			
 			return QueryBuilders.matchPhraseQuery(field, value);
 		}
 		return null;
@@ -140,7 +135,7 @@ public class AST_Search extends SimpleNode {
 		}
 		return null;
 	}
-	
+	/*
 	private static FilterBuilder genFilterBuilder(SimpleNode tree) throws CommandException{
 		
 		
@@ -271,7 +266,7 @@ public class AST_Search extends SimpleNode {
 		
 
 	}
-	
+	*/
 	private static QueryBuilder genQueryBuilder(SimpleNode tree) throws CommandException{
 		
 		

@@ -3,26 +3,48 @@
 package com.everdata.parser;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 
-public
-class AST_ByIdentList extends SimpleNode {
-  public AST_ByIdentList(int id) {
-    super(id);
-  }
+public class AST_ByIdentList extends SimpleNode {
 
-  public AST_ByIdentList(CommandParser p, int id) {
-    super(p, id);
-  }
-  
-  /** Names of the columns/tables. */
-  protected ArrayList<String> names = new ArrayList<String>();
+	public static class By {
+		public String name;
+		public boolean keyorder = true;
+		public boolean desc = true;
+		public boolean script = false;
+	}
 
-  /**
-   * Gets the names of the columns/tables.
-   */
-  public String[] getNames() {
-    return names.toArray(new String[names.size()]);
-  }
+	public AST_ByIdentList(int id) {
+		super(id);
+	}
+
+	public AST_ByIdentList(CommandParser p, int id) {
+		super(p, id);
+	}
+
+	/** Names of the columns/tables. */
+	public ArrayList<By> byList = new ArrayList<By>();
+
+	public void addField(String name) {
+		By b = new By();
+		b.name = name;
+		byList.add(b);
+	}
+
+	public void setCountOrder() {
+		byList.get(byList.size() - 1).keyorder = false;
+	}
+
+	public void setDesc(boolean desc) {
+		byList.get(byList.size() - 1).desc = desc;
+	}
+	
+	public void setScript() {
+		byList.get(byList.size() - 1).script = true;
+	}
 
 }
-/* JavaCC - OriginalChecksum=e20a995b9b9e507db3cad93fb586861e (do not edit this line) */
+/*
+ * JavaCC - OriginalChecksum=e20a995b9b9e507db3cad93fb586861e (do not edit this
+ * line)
+ */

@@ -3,14 +3,12 @@ package com.everdata.command;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.HashMap;
-import java.util.Set;
+import java.util.Queue;
+import java.util.Stack;
 
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest;
@@ -26,26 +24,24 @@ import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.ToXContent;
+import org.elasticsearch.common.xcontent.XContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentType;
-import org.elasticsearch.index.query.BoolQueryBuilder;
-import org.elasticsearch.index.query.QueryBuilder;
-import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.common.xcontent.json.JsonXContent;
 import org.elasticsearch.search.SearchHit;
-import org.elasticsearch.search.SearchHits;
 import org.elasticsearch.search.aggregations.AbstractAggregationBuilder;
 import org.elasticsearch.search.aggregations.Aggregation;
 import org.elasticsearch.search.aggregations.AggregationBuilders;
 import org.elasticsearch.search.aggregations.Aggregations;
+import org.elasticsearch.search.aggregations.bucket.MultiBucketsAggregation;
 import org.elasticsearch.search.aggregations.bucket.histogram.DateHistogram;
 import org.elasticsearch.search.aggregations.bucket.histogram.DateHistogram.Bucket;
 import org.elasticsearch.search.aggregations.bucket.histogram.DateHistogram.Interval;
 import org.elasticsearch.search.aggregations.bucket.histogram.DateHistogramBuilder;
-import org.elasticsearch.search.aggregations.bucket.terms.Terms;
-import org.elasticsearch.search.aggregations.bucket.terms.TermsBuilder;
 import org.elasticsearch.search.aggregations.metrics.MetricsAggregation.MultiValue;
 import org.elasticsearch.search.aggregations.metrics.MetricsAggregation.SingleValue;
+import org.elasticsearch.search.aggregations.metrics.cardinality.Cardinality;
 import org.elasticsearch.search.aggregations.metrics.valuecount.ValueCount;
 import org.elasticsearch.search.sort.SortOrder;
 
@@ -54,18 +50,20 @@ import com.everdata.parser.AST_Join;
 import com.everdata.parser.AST_Search;
 import com.everdata.parser.AST_Sort;
 import com.everdata.parser.AST_Stats;
-import com.everdata.parser.AST_Top;
+import com.everdata.parser.AST_Table;
+//import com.everdata.parser.AST_Top;
 import com.everdata.parser.CommandParser;
 import com.everdata.parser.Node;
 
 public class Search {
+	public final static String PREFIX_SEARCH_STRING = "SEARCH";
 
-	
-	
-	public static class QueryResponse{
-		public long took, totalHits,failedShards, successfulShards, totalShards;
+	public static class QueryResponse {
+		public long took, totalHits, failedShards, successfulShards,
+				totalShards;
 		public ArrayList<Map<String, Object>> searchHits = null;
-		public QueryResponse(int capcity){
+
+		public QueryResponse(int capcity) {
 			searchHits = new ArrayList<Map<String, Object>>(capcity);
 		}
 	}
@@ -78,19 +76,18 @@ public class Search {
 	ESLogger logger;
 	Client client;
 	String starttime, endtime;
-	SearchRequestBuilder querySearch, reportSearch, timelineSearch;
+	SearchRequestBuilder querySearch, reportSearch, timelineSearch, cardSearch;
 	DeleteByQueryRequestBuilder deleteSearch;
 
 	public ArrayList<Join> joinSearchs = new ArrayList<Join>();
 
-	public ArrayList<String> bucketFields = new ArrayList<String>();
+	public ArrayList<com.everdata.parser.AST_Stats.Bucket> bucketFields = null;
 	public ArrayList<String> funcFields = new ArrayList<String>();
 
 	// public Function countField = null;
 
-	static String[] parseIndices(AST_Search searchTree, Client client) {
+	static String[] parseIndices(AST_Search searchTree, Client client) throws CommandException {
 		String[] indices = Strings.EMPTY_ARRAY;
-		
 
 		// 过滤不存在的index，不然查询会失败
 		// 如果所有指定的index都不存在，那么将在所有的index查询该条件
@@ -108,26 +105,26 @@ public class Search {
 
 		if (listIndices.size() > 0)
 			indices = listIndices.toArray(new String[listIndices.size()]);
+		else
+			throw new CommandException(String.format("%s index not exsit", searchTree.getOption(Option.INDEX)));
 		
 		return indices;
 
 	}
-	
-	static String[] parseTypes(AST_Search searchTree){
+
+	static String[] parseTypes(AST_Search searchTree) {
 		String[] sourceTypes = Strings.EMPTY_ARRAY;
-		
+
 		if (searchTree.getOption(Option.SOURCETYPE) != null)
 			sourceTypes = ((String) searchTree.getOption(Option.SOURCETYPE))
 					.split(",");
 
 		return sourceTypes;
 	}
-	
-	
-	
-	//全命令支持
-	public Search(CommandParser parser, Client client, ESLogger logger)
-			throws CommandException {
+
+	// 全命令支持
+	public Search(CommandParser parser, Client client, ESLogger logger, boolean download)
+			throws CommandException, IOException {
 
 		this.client = client;
 		this.logger = logger;
@@ -136,7 +133,7 @@ public class Search {
 
 		// search rolling out
 		AST_Search searchTree = (AST_Search) searchCommands.get(0);
-		
+
 		String[] indices = parseIndices(searchTree, client);
 		String[] sourceTypes = parseTypes(searchTree);
 		this.querySearch = client.prepareSearch(indices).setTypes(sourceTypes)
@@ -144,6 +141,8 @@ public class Search {
 		this.timelineSearch = client.prepareSearch(indices)
 				.setTypes(sourceTypes).setQuery(searchTree.getQueryBuilder());
 		this.reportSearch = client.prepareSearch(indices).setTypes(sourceTypes)
+				.setQuery(searchTree.getQueryBuilder());
+		this.cardSearch = client.prepareSearch(indices).setTypes(sourceTypes)
 				.setQuery(searchTree.getQueryBuilder());
 		this.deleteSearch = client.prepareDeleteByQuery(indices)
 				.setTypes(sourceTypes).setQuery(searchTree.getQueryBuilder());
@@ -153,13 +152,18 @@ public class Search {
 			if (searchCommands.get(i) instanceof AST_Sort) {
 				AST_Sort sortTree = (AST_Sort) searchCommands.get(i);
 
-				for (String field : sortTree.sortFields) {
-					addSortToQuery(field);
+				for (AST_Sort.SortField field : sortTree.sortFields) {
+					addSortToQuery(field.field, field.desc);
 				}
 
 			} else if (searchCommands.get(i) instanceof AST_Join) {
 				AST_Join joinTree = (AST_Join) searchCommands.get(i);
 				joinSearchs.add(joinTree.getJoin());
+			} else if (searchCommands.get(i) instanceof AST_Table) {
+				AST_Table tableTree = (AST_Table) searchCommands.get(i);
+				if (tableTree.getTables() != null) {
+					querySearch.setFetchSource(tableTree.getTables(), null);
+				}
 			}
 		}
 
@@ -169,24 +173,30 @@ public class Search {
 
 			ArrayList<AbstractAggregationBuilder> stats = new ArrayList<AbstractAggregationBuilder>();
 
-			// Order order = new Order();
-
 			for (Node child : reportCommands) {
 				if (child instanceof AST_Stats) {
-
-					for (AbstractAggregationBuilder stat : ((AST_Stats) child)
-							.getStats()) {
+					
+					for (AbstractAggregationBuilder stat : ((AST_Stats) child).getStats()) {
 						stats.add(stat);
 					}
-					for (String key : ((AST_Stats) child).bucketFields())
-						bucketFields.add(key);
+					
+					bucketFields = ((AST_Stats) child).bucketFields();
 
 					for (String key : ((AST_Stats) child).statsFields())
 						funcFields.add(key);
+					
+					if(download){
+						for (int idx = 0; idx < bucketFields.size() ; idx ++) {
+							AST_Stats.Bucket b = bucketFields.get(idx);
+							
+							if(b.type == AST_Stats.Bucket.TERM){
+								long limit = executeCardinary(b.bucketField);
+								((AST_Stats) child).setBucketLimit(idx, limit);
+							}
+						}
+					}
 
-					// countField = ((AST_Stats) child).count;
-
-				} else if (child instanceof AST_Top) {
+				} /*else if (child instanceof AST_Top) {
 					stats.add(((AST_Top) child).getTop());
 
 					for (String key : ((AST_Top) child).bucketFields())
@@ -195,10 +205,14 @@ public class Search {
 					for (String key : ((AST_Top) child).topFields())
 						funcFields.add(key);
 
-				} else if (child instanceof AST_Sort) {
-					// ((AST_Sort) child).s;
-					// TODO
-				}
+				} 
+				else if (child instanceof AST_Sort) {
+					
+					for (AST_Sort.SortField field : ((AST_Sort) child).sortFields) {
+						addSortToReport(field.field, field.desc);
+					}
+					
+				}*/
 
 			}
 
@@ -209,10 +223,13 @@ public class Search {
 		}
 
 	}
-	
-	
 
-	private void addSortToQuery(String field) {
+	private void addSortToQuery(String field, boolean desc) {		
+		querySearch.addSort(field, desc?SortOrder.DESC:SortOrder.ASC);		
+	}
+	/*
+	private void addSortToReport(String field) {
+		
 		if (field == null) {
 			return;
 		} else if (field.startsWith("+")) {
@@ -221,14 +238,66 @@ public class Search {
 			querySearch.addSort(field.substring(1), SortOrder.DESC);
 		} else
 			querySearch.addSort(field, SortOrder.ASC);
+		
 	}
+	*/
+	public static void buildQuery(int from, XContentBuilder builder,
+			SearchResponse response, ESLogger logger) throws IOException {
 
+		logger.info("Query took in millseconds:" + response.getTookInMillis());
+
+		// 格式化结果后输出
+
+		builder.startObject();
+		builder.field("took", response.getTookInMillis());
+		builder.field("total", response.getHits().getTotalHits());
+		builder.field("from", from);
+
+		builder.field("_shard_failed", response.getFailedShards());
+		builder.field("_shard_successful", response.getSuccessfulShards());
+		builder.field("_shard_total", response.getTotalShards());
+		builder.startArray("fields");
+
+		if (response.getHits().getTotalHits() == 0) {
+			builder.endArray();
+			return;
+		}
+
+		List<String> fields = new ArrayList<String>(response.getHits().getAt(0).sourceAsMap().keySet());
+		builder.value("_id");
+		builder.value("_index");
+		builder.value("_type");
+		java.util.Collections.sort(fields);
+		for (String key : fields) {
+			builder.value(key);
+		}
+		builder.endArray();
+
+		builder.startArray("rows");
+		Iterator<SearchHit> iterator = response.getHits().iterator();
+
+		while (iterator.hasNext()) {
+			SearchHit _row = iterator.next();
+
+			builder.startArray();
+			builder.value(_row.getId());
+			builder.value(_row.getIndex());
+			builder.value(_row.getType());
+
+			for (String key : fields) {
+				builder.value(_row.sourceAsMap().get(key));
+			}
+
+			builder.endArray();
+
+		}
+		builder.endArray().endObject();
+
+	}
 	public static void buildQuery(int from, XContentBuilder builder,
 			QueryResponse response, ESLogger logger) throws IOException {
 
-		
 		logger.info("Query took in millseconds:" + response.took);
-		
 
 		// 格式化结果后输出
 
@@ -241,26 +310,26 @@ public class Search {
 		builder.field("_shard_successful", response.successfulShards);
 		builder.field("_shard_total", response.totalShards);
 		builder.startArray("fields");
-		
-		if(response.searchHits.size() == 0){
+
+		if (response.searchHits.size() == 0) {
 			builder.endArray();
 			return;
 		}
-		
-		List<String> fields = new ArrayList<String>(response.searchHits.get(0).keySet());
+
+		List<String> fields = new ArrayList<String>(response.searchHits.get(0)
+				.keySet());
 		java.util.Collections.sort(fields);
 		for (String key : fields) {
 			builder.value(key);
 		}
 		builder.endArray();
-			
 
 		builder.startArray("rows");
-		for(Map<String, Object> _row : response.searchHits){
-			
+		for (Map<String, Object> _row : response.searchHits) {
+
 			builder.startArray();
 
-			for (String key : fields) {				
+			for (String key : fields) {
 				builder.value(_row.get(key));
 			}
 
@@ -322,60 +391,86 @@ public class Search {
 		builder.endArray().endObject();
 
 	}
+	
+	public static void LeafTraverse(final ArrayList<String> funcFields, final ArrayList<com.everdata.parser.AST_Stats.Bucket> bucketFields, Queue<List<String>> rows, 
+			org.elasticsearch.search.aggregations.bucket.MultiBucketsAggregation.Bucket node, Stack<String> path, int[] totalRows,
+			final int from, final int size) throws CommandException{
+		
+		
+		path.push(node.getKey());
+		
+		MultiBucketsAggregation bucketAgg = node.getAggregations().get("statsWithBy");
+		if( bucketAgg != null ){
+			Iterator<? extends org.elasticsearch.search.aggregations.bucket.MultiBucketsAggregation.Bucket> iterator = bucketAgg.getBuckets().iterator();
+			while (iterator.hasNext()) {
+				LeafTraverse(funcFields, bucketFields, rows, iterator.next(), path, totalRows, from, size);
+			}
+		}else{
+			if(size < 0 ||  totalRows[0] < (from + size) ){
+				List<String> row = new ArrayList<String>();
+				row.addAll(path);
+				
+				Map<String, Aggregation> map = node.getAggregations().getAsMap();
+	
+				for (String k : funcFields) {
+					Aggregation agg = map.get(k);
+	
+					if (agg instanceof SingleValue) {
+						double value = ((SingleValue) agg).value();
+						row.add(String.valueOf(value));
+					} else if (agg instanceof ValueCount) {
+						row.add(String.valueOf(((ValueCount) agg).getValue()));
+					} else if (agg instanceof MultiValue) {
+						throw new CommandException("暂不支持 MultiValue");
+					}
+	
+				}
+				
+				row.add(String.valueOf(node.getDocCount()));
+	
+				rows.add(row);
+			}
+			totalRows[0] += 1;
+		}
+		
+		path.pop();
+	}
 
-	public static void buildReport(int from, XContentBuilder builder,
+	public static void buildReport(int from, int size, XContentBuilder builder,
 			ReportResponse response, ESLogger logger) throws IOException,
 			CommandException {
 
-		logger.debug("Report took in millseconds:"
+		int[] total = {0};
+		logger.info("Report took in millseconds:"
 				+ response.response.getTookInMillis());
 
 		List<String> fields = new ArrayList<String>();
-		List<List<String>> rows = new ArrayList<List<String>>();
-
+		LinkedList<List<String>> rows = new LinkedList<List<String>>();
+		List<List<String>> reportRows = null;
 		Aggregations report = response.response.getAggregations();
 
 		// 构建表头
-		fields.addAll(response.bucketFields);
+		for(com.everdata.parser.AST_Stats.Bucket b : response.bucketFields){
+			fields.add(b.bucketField);
+		}
+		
+		java.util.Collections.reverse(fields);
+		
 		fields.addAll(response.funcFields);
 
 		fields.add("_count");
 
 		if (report.get("statsWithBy") != null) {
-			// 一级结构
-			Terms terms = report.get("statsWithBy");
-
-			Iterator<Terms.Bucket> iterator = terms.getBuckets().iterator();
+			
+			MultiBucketsAggregation bucketAgg = report.get("statsWithBy");
+			
+			Iterator<? extends org.elasticsearch.search.aggregations.bucket.MultiBucketsAggregation.Bucket> iterator = bucketAgg.getBuckets().iterator();
 			while (iterator.hasNext()) {
-				List<String> row = new ArrayList<String>();
-
-				Terms.Bucket next = iterator.next();
-
-				for (String value : next.getKey().split("\\|"))
-					// 分组Key的具体值，e.g: www.sina.com, 多值 www.sina.com|80|123
-					row.add(value);
-
-				Map<String, Aggregation> map = next.getAggregations()
-						.getAsMap();
-
-				for (String k : response.funcFields) {
-					Aggregation agg = map.get(k);
-
-					if (agg instanceof SingleValue) {
-						double value = ((SingleValue) agg).value();
-						row.add(String.valueOf(value));
-					} else if (agg instanceof MultiValue) {
-						throw new CommandException("暂不支持 MultiValue");
-					}
-
-				}
-
-				row.add(String.valueOf(next.getDocCount()));
-
-				rows.add(row);
+				org.elasticsearch.search.aggregations.bucket.MultiBucketsAggregation.Bucket next = iterator.next();
+				LeafTraverse(response.funcFields, response.bucketFields, rows, next, new Stack<String>(), total, from, size);
 			}
 
-		} else if (report.get("topWithBy") != null) {
+		} /*else if (report.get("topWithBy") != null) {
 			// 两级bucket结构
 
 			Terms terms = report.get("topWithBy");
@@ -425,7 +520,7 @@ public class Search {
 				rows.add(row);
 
 			}
-		} else {
+		} */else {
 			// 0级结构
 			List<String> row = new ArrayList<String>();
 
@@ -442,9 +537,11 @@ public class Search {
 			rows.add(row);
 		}
 
+		reportRows = rows.subList(from, rows.size());
+		
 		builder.startObject();
 		builder.field("took", response.response.getTookInMillis());
-		builder.field("total", rows.size());
+		builder.field("total", total[0]);
 		builder.field("from", from);
 
 		builder.field("_shard_failed", response.response.getFailedShards());
@@ -460,7 +557,7 @@ public class Search {
 		builder.endArray();
 
 		builder.startArray("rows");
-		for (List<String> row : rows) {
+		for (List<String> row : reportRows) {
 			builder.startArray();
 			for (String value : row) {
 				builder.value(value);
@@ -470,66 +567,68 @@ public class Search {
 		builder.endArray().endObject();
 
 	}
+
+	public void executeQueryWithNonJoin(ActionListener<SearchResponse> listener,
+			int from, final int size, String... sortFields) {
+
+		// jobHandler，执行期才知道要排序
+		for (String field : sortFields) {
+			addSortToQuery(field, true);
+		}
+		querySearch.setSearchType(SearchType.QUERY_THEN_FETCH).setFrom(from).setSize(size);
+		dumpSearchScript(querySearch, logger);
+		
+		querySearch.execute(listener);
+	}
 	
 	public void executeQuery(final ActionListener<QueryResponse> listener,
 			int from, final int size, String... sortFields) {
 
 		// jobHandler，执行期才知道要排序
 		for (String field : sortFields) {
-			addSortToQuery(field);
+			addSortToQuery(field, true);
 		}
-		
 
 		querySearch.setSearchType(SearchType.QUERY_THEN_FETCH).setFrom(from)
 				.setSize(size);
 		dumpSearchScript(querySearch, logger);
-		
-		
-		querySearch.execute(new ActionListener<SearchResponse>(){
 
-			@Override
-			public void onResponse(SearchResponse response) {
-				
-				long milli = System.currentTimeMillis();
-				QueryResponse queryResponse = new QueryResponse(size);
-				
-				
-				queryResponse.totalHits = response.getHits().getTotalHits();
-				queryResponse.failedShards = response.getFailedShards();
-				queryResponse.successfulShards = response.getSuccessfulShards();
-				queryResponse.totalShards = response.getTotalShards();
-				Iterator<SearchHit> iterator = response.getHits().iterator();
-				
-				while (iterator.hasNext()) {
-					SearchHit _hit = iterator.next();
-					Map<String, Object> hit = _hit.sourceAsMap();
-					hit.put("_id", _hit.id());
-					hit.put("_index", _hit.index());
-					hit.put("_type", _hit.type());
-					
-					queryResponse.searchHits.add(hit);					
-				}
-				
-				for(Join join: joinSearchs){
-					try {
-						JoinQuery.executeJoin(join, size*2, queryResponse.searchHits, client, logger);
-					} catch (CommandException e) {
-						logger.error("executeJoin", e);
-						onFailure(e);
-					}
-				}					
-				
-				queryResponse.took = response.getTookInMillis() + (System.currentTimeMillis() - milli);
-				listener.onResponse(queryResponse);
+		SearchResponse response = querySearch.execute().actionGet();
+		logger.info(String.format("query took %d", response.getTookInMillis()));
+		long milli = System.currentTimeMillis();
+
+		final QueryResponse queryResponse = new QueryResponse(size);
+
+		queryResponse.totalHits = response.getHits().getTotalHits();
+		queryResponse.failedShards = response.getFailedShards();
+		queryResponse.successfulShards = response.getSuccessfulShards();
+		queryResponse.totalShards = response.getTotalShards();
+		Iterator<SearchHit> iterator = response.getHits().iterator();
+
+		while (iterator.hasNext()) {
+			SearchHit _hit = iterator.next();
+			Map<String, Object> hit = _hit.sourceAsMap();
+			hit.put("_id", _hit.id());
+			hit.put("_index", _hit.index());
+			hit.put("_type", _hit.type());
+
+			queryResponse.searchHits.add(hit);
+		}
+
+		for (Join join : joinSearchs) {
+			try {
+				JoinQuery.executeJoin(join, size, queryResponse.searchHits,
+						client, logger);
+			} catch (CommandException e) {
+				logger.error("executeJoin", e);
+				listener.onFailure(e);
+				return;
 			}
+		}
 
-			@Override
-			public void onFailure(Throwable e) {
-				listener.onFailure(e);					
-			}
-				
-		});
-
+		queryResponse.took = response.getTookInMillis()
+				+ (System.currentTimeMillis() - milli);
+		listener.onResponse(queryResponse);
 	}
 
 	public void executeTimeline(final ActionListener<SearchResponse> listener,
@@ -563,6 +662,23 @@ public class Search {
 		dumpSearchScript(reportSearch, logger);
 		reportSearch.execute(listener);
 	}
+	
+	private long executeCardinary(String field) throws IOException{
+		
+		SearchResponse cardResponse = cardSearch.setAggregations(
+				JsonXContent.contentBuilder()
+				.startObject()
+                	.startObject("LIMIT")
+                		.startObject("cardinality")
+                			.field("field", field)
+                		.endObject()
+                	.endObject()
+				).get();
+
+		Cardinality limit = cardResponse.getAggregations().get("LIMIT");
+		
+		return limit.getValue();		
+	}
 
 	static void dumpSearchScript(SearchRequestBuilder search, ESLogger logger) {
 
@@ -583,14 +699,19 @@ public class Search {
 		deleteSearch.execute(listener);
 	}
 
-	public void executeDownload(final OutputStream httpStream) {
+	public void executeDownload(final OutputStream httpStream, final XContent xcontent) {
 
+		
+		
 		final SearchResponse head = querySearch.setSearchType(SearchType.SCAN)
 				.setSize(200).setScroll(TimeValue.timeValueMinutes(10))
 				.execute().actionGet();
 
 		dumpSearchScript(querySearch, logger);
-
+		
+		
+		
+		
 		new Thread(new Runnable() {
 
 			@Override
@@ -600,7 +721,7 @@ public class Search {
 				ClearScrollRequestBuilder clear = client.prepareClearScroll();
 				try {
 					builder = new XContentBuilder(
-							XContentFactory.xContent(XContentType.JSON),
+							xcontent,
 							httpStream);
 					builder.startObject();
 					builder.field("total", head.getHits().getTotalHits());
@@ -647,14 +768,6 @@ public class Search {
 
 	}
 
-	public static TermsBuilder newTermsAgg(String name, int size, String[] fields) {
-		TermsBuilder agg = AggregationBuilders.terms(name).size(size);
-		if (fields.length == 1)
-			agg.field(fields[0]);
-		else
-			agg.script(Field.fieldsToScript(fields));
 
-		return agg;
-	}
 
 }
