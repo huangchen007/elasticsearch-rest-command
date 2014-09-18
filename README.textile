@@ -1,3 +1,7 @@
+v0.6.0(2014年9月18日)
+支持everdata0.5.0以上版本
+为了统一语法，统计命令导出download参数取消
+    当LIMIT参数设置为-1时，LIMIT参数的值自动替换成基数估计出来值。
 
 v0.5.3(2014年8月1日)
 为了统一语法，取消采用(+/-)号来标示排序，启用ASC/DESC关键字来做为排序的标识。
@@ -9,8 +13,6 @@ v0.5.3(2014年8月1日)
 取消KEYORDER关键字，启用COUNTORDER关键字。默认均为按照字段排序，特殊指定COUNTORDER，才采用结果数排序。注意，仅有分组字段才有COUNTORDER这个特性。
 如：
     STATS SUM(downflow) [ASC/DESC] BY MSISDN COUNTORDER
-
-
 
 
 
