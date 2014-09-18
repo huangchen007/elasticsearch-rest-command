@@ -45,8 +45,7 @@ public class CommandRestHandler extends BaseRestHandler {
 	}
 
 	@Override
-	public void handleRequest(final RestRequest request,
-			final RestChannel channel) {
+	public void handleRequest(RestRequest request, final RestChannel channel, Client client) {
 
 		String command = "";
 		if (request.method() == RestRequest.Method.GET)
@@ -69,9 +68,10 @@ public class CommandRestHandler extends BaseRestHandler {
 		logger.info(command);
 
 		final int from = request.paramAsInt("from", 0);
-		final int size = request.paramAsInt("size", -1);
+		final int size = request.paramAsInt("size", 10);
 		final String format = request.param("format", "json");
 		final boolean download = request.paramAsBoolean("download", false);
+		final boolean showMeta = request.paramAsBoolean("showMeta", true);
 
 		XContent xContent = XContentType.JSON.xContent();
 
@@ -86,7 +86,7 @@ public class CommandRestHandler extends BaseRestHandler {
 
 			AST_Start.dumpWithLogger(logger, parser.getInnerTree(), "");
 
-			search = new Search(parser, client, logger, download);
+			search = new Search(parser, client, logger);
 
 		} catch (CommandException e2) {
 			SendFailure(request, channel, e2);
@@ -147,10 +147,10 @@ public class CommandRestHandler extends BaseRestHandler {
 					@Override
 					public RestResponse buildResponse(QueryResponse result,
 							XContentBuilder builder) throws Exception {
-						Search.buildQuery(from, builder, result, logger);
+						Search.buildQuery(from, builder, result, logger, search.tableFieldNames, showMeta);
 						return new BytesRestResponse(RestStatus.OK, builder);
 					}
-				}, from, size);
+				}, from, size, new String[0]);
 			} else {
 				search.executeQueryWithNonJoin(
 						new RestBuilderListener<SearchResponse>(channel) {
@@ -158,16 +158,16 @@ public class CommandRestHandler extends BaseRestHandler {
 							public RestResponse buildResponse(
 									SearchResponse result,
 									XContentBuilder builder) throws Exception {
-								Search.buildQuery(from, builder, result, logger);
+								Search.buildQuery(from, builder, result, logger, search.tableFieldNames, showMeta);
 								return new BytesRestResponse(RestStatus.OK,
 										builder);
 							}
-						}, from, size);
+						}, from, size, new String[0]);
 			}
 		} else {
 			final ReportResponse result = new ReportResponse();
 			result.bucketFields = search.bucketFields;
-			result.funcFields = search.funcFields;
+			result.statsFields = search.statsFields;
 
 			search.executeReport(new RestBuilderListener<SearchResponse>(
 					channel) {

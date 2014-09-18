@@ -31,11 +31,11 @@ public class AST_Stats extends SimpleNode {
 		public String bucketField;
 		public boolean desc = true;
 		public boolean keyOrder = false;
-		public boolean script = false;
-		//public AbstractAggregationBuilder limitQueryIfBucketIsTerm = null;
+		public boolean script = false;		
 		
 		public int type = 0;
 		public static final int TERM = 0;
+		public static final int TERMWITHCARD = 3;
 		public static final int HISTOGRAM = 1;
 		public static final int DATEHISTOGRAM = 2;
 	}
@@ -48,7 +48,7 @@ public class AST_Stats extends SimpleNode {
 	ArrayList<Integer> limits = new ArrayList<Integer>();
 	ArrayList<String> timespans = new ArrayList<String>();
 	ArrayList<Integer> spans = new ArrayList<Integer>();
-	ArrayList<String> statsFields = new ArrayList<String>();
+	//ArrayList<String> statsFields = new ArrayList<String>();
 	
 	
 	
@@ -56,8 +56,8 @@ public class AST_Stats extends SimpleNode {
 		return bucketFields; 
 	}
 	
-	public String[] statsFields(){
-		return statsFields.toArray(new String[statsFields.size()]);
+	public ArrayList<Function> statsFields(){
+		return funcs;
 	}
 
 	public AST_Stats(int id) {
@@ -171,8 +171,9 @@ public class AST_Stats extends SimpleNode {
 				}
 				
 			} else if (n instanceof AST_StatsFunc) {
+				
+				((AST_StatsFunc) n).func.statsField = Function.genStatField( ((AST_StatsFunc) n).func ) ;
 				funcs.add(((AST_StatsFunc) n).func);
-				statsFields.add( Function.genStatField( ((AST_StatsFunc) n).func ) );
 			}
 		}
 	}
@@ -181,6 +182,10 @@ public class AST_Stats extends SimpleNode {
 		if(buckets.get(idx) instanceof TermsBuilder)
 			((TermsBuilder)buckets.get(idx)).size((int) limit);
 	}
+	
+	public static final int DEFAULT_LIMIT = 50;
+	public static final int DEFAULT_LIMIT_CARD = -1;
+	public static final int DEFAULT_MINICOUNT = 1;
 
 	private AbstractAggregationBuilder[] genAggregation() throws CommandException {
 
@@ -193,8 +198,8 @@ public class AST_Stats extends SimpleNode {
 		
 		for(int i = 0 ; i < bucketFields.size(); i++){
 			AggregationBuilder<?> bucket = null;
-			int mincount = 1;
-			int limit = 20;
+			int mincount = DEFAULT_MINICOUNT;
+			int limit = DEFAULT_LIMIT;
 			if(limits.size() > i)
 				limit = limits.get(i);
 			if(mincounts.size() > i)
@@ -233,9 +238,11 @@ public class AST_Stats extends SimpleNode {
 				):(
 					bucketFields.get(i).keyOrder?Terms.Order.term(true):Terms.Order.count(true)
 				);
-				bucketFields.get(i).type = Bucket.TERM;
-				//bucketFields.get(i).limitQueryIfBucketIsTerm = newCard(new Function(Function.DC, "LIMIT", bucketFields.get(i).bucketField));
-				bucket = newTermsBucket("statsWithBy", limit, bucketFields.get(i).bucketField, mincount, bucketFields.get(i).script).order(order);				
+				
+					
+				bucketFields.get(i).type = (limit == DEFAULT_LIMIT_CARD)?Bucket.TERMWITHCARD:Bucket.TERM;
+				
+				bucket = newTermsBucket("statsWithBy", (limit == DEFAULT_LIMIT_CARD)?DEFAULT_LIMIT:limit, bucketFields.get(i).bucketField, mincount, bucketFields.get(i).script).order(order);				
 			}
 
 			buckets.add(bucket);

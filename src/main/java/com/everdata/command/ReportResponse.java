@@ -9,7 +9,7 @@ public class ReportResponse {
 	
 	public SearchResponse response = null;	
 	public ArrayList<com.everdata.parser.AST_Stats.Bucket> bucketFields = null;
-	public ArrayList<String> funcFields = null;	
+	public ArrayList<Function> statsFields = null;	
 	//public Function countField = null;
 	
 }

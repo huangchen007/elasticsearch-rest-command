@@ -9,20 +9,16 @@ public class Function {
 	public final static int MIN = 6;
 	
 	public int type;
-	public int fieldtype;
+	public int fieldtype; //SCRIPT or SINGLE
 	public String field = null;
 	public String name = null;
 	public String as = null;
 	public int order = 0;
+	public String statsField = null;
 	
 	
 	public Function(){}
 	
-	public Function(int ft, String a, String f){
-		as = a;
-		fieldtype = ft;
-		field = f;
-	}
 	
 	public static String genStatField(Function func){
 		if(func.as != null){

@@ -193,6 +193,7 @@ TOKEN: /* Command Keywords */
   | < K_SPAN: "SPAN" >
   | < K_TIMESPAN: "TIMESPAN" >
   | < K_COUNTORDER: "COUNTORDER" >
+  | < K_CARD: "CARD" >
 }
 
 TOKEN: /* Operators */
@@ -304,7 +305,7 @@ void StatsStatement() #_Stats:{}
   [
   <K_MINCOUNT> <O_EQ> <S_INTEGER>{jjtThis.mincounts.add(Integer.parseInt(token.image));} (<O_COMMA> <S_INTEGER>{jjtThis.mincounts.add(Integer.parseInt(token.image));})*
   |
-  <K_LIMIT> <O_EQ> <S_INTEGER>  {jjtThis.limits.add(Integer.parseInt(token.image));}(<O_COMMA> <S_INTEGER>{jjtThis.limits.add(Integer.parseInt(token.image));})*
+  <K_LIMIT> <O_EQ> <S_INTEGER>  {jjtThis.limits.add(Integer.parseInt(token.image));} (<O_COMMA> <S_INTEGER>{jjtThis.limits.add(Integer.parseInt(token.image));})*
   |
   <K_SPAN> <O_EQ> <S_INTEGER>  { jjtThis.spans.add(Integer.parseInt(token.image)); }(<O_COMMA> <S_INTEGER>{ jjtThis.spans.add(Integer.parseInt(token.image));})*
   |
