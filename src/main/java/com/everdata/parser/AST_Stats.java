@@ -282,6 +282,7 @@ public class AST_Stats extends SimpleNode {
 								
 				switch(bucketFields.get(0).type){
 				case Bucket.TERM :
+				case Bucket.TERMWITHCARD:
 					((TermsBuilder)buckets.get(0)).order(Terms.Order.aggregation(Function.genStatField(func), asc));
 					break;
 				case Bucket.HISTOGRAM :

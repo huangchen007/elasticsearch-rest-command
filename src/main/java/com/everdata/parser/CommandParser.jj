@@ -197,6 +197,7 @@ TOKEN: /* Command Keywords */
   | < K_SPAN: "SPAN" >
   | < K_TIMESPAN: "TIMESPAN" >
   | < K_COUNTORDER: "COUNTORDER" >
+  | < K_CARD: "CARD" >
 }
 
 TOKEN: /* Operators */
@@ -421,7 +422,7 @@ void StatsStatement()        :{/*@bgen(jjtree) _Stats */
   [
   <K_MINCOUNT> <O_EQ> <S_INTEGER>{jjtn000.mincounts.add(Integer.parseInt(token.image));} (<O_COMMA> <S_INTEGER>{jjtn000.mincounts.add(Integer.parseInt(token.image));})*
   |
-  <K_LIMIT> <O_EQ> <S_INTEGER>  {jjtn000.limits.add(Integer.parseInt(token.image));}(<O_COMMA> <S_INTEGER>{jjtn000.limits.add(Integer.parseInt(token.image));})*
+  <K_LIMIT> <O_EQ> <S_INTEGER>  {jjtn000.limits.add(Integer.parseInt(token.image));} (<O_COMMA> <S_INTEGER>{jjtn000.limits.add(Integer.parseInt(token.image));})*
   |
   <K_SPAN> <O_EQ> <S_INTEGER>  { jjtn000.spans.add(Integer.parseInt(token.image)); }(<O_COMMA> <S_INTEGER>{ jjtn000.spans.add(Integer.parseInt(token.image));})*
   |
@@ -582,7 +583,8 @@ void ByClause()               : {/*@bgen(jjtree) _ByIdentList */
 /*@egen*/
   <K_BY> 
   (
-  <K_EVAL><O_LPAREN> <S_QUOTED_STRING>{jjtn000.addField(token.image.substring(1, token.image.length() - 1));jjtn000.setScript();} <O_RPAREN>     
+  <K_EVAL><O_LPAREN> <S_QUOTED_STRING>{jjtn000.addField(token.image.substring(1, token.image.length() - 1));jjtn000.setScript();} <O_RPAREN>  
+  [ <K_AS> <S_IDENTIFIER> {jjtn000.setAs(token.image);} ]
   |
   <S_IDENTIFIER> {jjtn000.addField(token.image);} 
   )
@@ -592,6 +594,7 @@ void ByClause()               : {/*@bgen(jjtree) _ByIdentList */
     <O_COMMA> 
     (      
       <K_EVAL><O_LPAREN> <S_QUOTED_STRING>{jjtn000.addField(token.image.substring(1, token.image.length() - 1));jjtn000.setScript();} <O_RPAREN> 
+      [ <K_AS> <S_IDENTIFIER> {jjtn000.setAs(token.image);} ]
     |
       <S_IDENTIFIER> {jjtn000.addField(token.image);} 
     
@@ -875,12 +878,11 @@ void TermExpression()                  :{/*@bgen(jjtree) _TermExpression */
   <S_FLOAT>  
   |
   <S_IDENTIFIER>
-  /*|
-  <S_IDENTIFIER_PREFIXWITHNUM>*/)/*@bgen(jjtree)*/
-                                  {
-                                    jjtree.closeNodeScope(jjtn000, true);
-                                    jjtc000 = false;
-                                  }
+  )/*@bgen(jjtree)*/
+    {
+      jjtree.closeNodeScope(jjtn000, true);
+      jjtc000 = false;
+    }
 /*@egen*/ {jjtn000.type = AST_TermExpression.TERM;jjtn000.term = token.image;}  
   |
   <S_QUOTED_STRING>/*@bgen(jjtree)*/

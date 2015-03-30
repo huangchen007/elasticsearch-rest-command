@@ -80,8 +80,10 @@ public class Search {
 	ESLogger logger;
 	Client client;
 	String starttime, endtime;
-	SearchRequestBuilder querySearch, reportSearch, timelineSearch, cardSearch;
+	public SearchRequestBuilder querySearch, reportSearch, timelineSearch, cardSearch;
 	DeleteByQueryRequestBuilder deleteSearch;
+	
+	public String[] indices, sourceTypes;
 
 	public ArrayList<Join> joinSearchs = new ArrayList<Join>();
 
@@ -92,7 +94,7 @@ public class Search {
 
 	// public Function countField = null;
 
-	static String[] parseIndices(AST_Search searchTree, Client client) throws CommandException {
+	public static String[] parseIndices(AST_Search searchTree, Client client) throws CommandException {
 		String[] indices = Strings.EMPTY_ARRAY;
 
 		// 过滤不存在的index，不然查询会失败
@@ -118,7 +120,7 @@ public class Search {
 
 	}
 
-	static String[] parseTypes(AST_Search searchTree) {
+	public static String[] parseTypes(AST_Search searchTree) {
 		String[] sourceTypes = Strings.EMPTY_ARRAY;
 
 		if (searchTree.getOption(Option.SOURCETYPE) != null)
@@ -140,8 +142,8 @@ public class Search {
 		// search rolling out
 		AST_Search searchTree = (AST_Search) searchCommands.get(0);
 
-		String[] indices = parseIndices(searchTree, client);
-		String[] sourceTypes = parseTypes(searchTree);
+		indices = parseIndices(searchTree, client);
+		sourceTypes = parseTypes(searchTree);
 		this.querySearch = client.prepareSearch(indices).setTypes(sourceTypes)
 				.setQuery(searchTree.getQueryBuilder());
 		this.timelineSearch = client.prepareSearch(indices)
@@ -197,7 +199,7 @@ public class Search {
 						
 						AST_Stats.Bucket b = bucketFields.get(idx);
 							
-						if(b.type == AST_Stats.Bucket.TERMWITHCARD){							
+						if(b.type == AST_Stats.Bucket.TERMWITHCARD){
 							((AST_Stats) child).setBucketLimit(idx, executeCardinary(b.bucketField));
 						}
 						
@@ -714,9 +716,7 @@ public class Search {
 		deleteSearch.execute(listener);
 	}
 
-	public void executeDownload(final OutputStream httpStream, final XContent xcontent) {
-
-		
+	public void executeDownload(final OutputStream httpStream, final XContent xcontent, boolean download2) {
 		
 		final SearchResponse head = querySearch.setSearchType(SearchType.SCAN)
 				.setSize(200).setScroll(TimeValue.timeValueMinutes(10))
@@ -724,60 +724,110 @@ public class Search {
 
 		dumpSearchScript(querySearch, logger);
 		
-		
-		
-		new Thread(new Runnable() {
-
-			@Override
-			public void run() {
-
-				XContentBuilder builder;
-				ClearScrollRequestBuilder clear = client.prepareClearScroll();
-				try {
-					builder = new XContentBuilder(
-							xcontent,
-							httpStream);
-					builder.startObject();
-					builder.field("total", head.getHits().getTotalHits());
-
-					builder.startArray("hits");
-
-					// start scrolling, until we get not results
-
-					String id = head.getScrollId();
-					clear.addScrollId(id);
-
-					while (true) {
-
-						SearchResponse result = client.prepareSearchScroll(id)
-								.setScroll(TimeValue.timeValueMinutes(10))
-								.execute().actionGet();
-
-						if (result.getHits().hits().length == 0) {
-							break;
-						}
-
-						for (SearchHit hit : result.getHits()) {
-							hit.toXContent(builder, null);
-						}
-						logger.info("executeDownload scrollId: " + id);
+		if(download2){
+			
+			new Thread(new Runnable() {
+				@Override
+				public void run() {
+	
+					
+					ClearScrollRequestBuilder clear = client.prepareClearScroll();
+					try {	
+						
+						httpStream.write(String.format("{\"total\":%d}\n\n", head.getHits().getTotalHits()).getBytes());					
+	
+						// start scrolling, until we get not results
+	
+						String id = head.getScrollId();
 						clear.addScrollId(id);
-						id = result.getScrollId();
-
+	
+						while (true) {
+	
+							SearchResponse result = client.prepareSearchScroll(id)
+									.setScroll(TimeValue.timeValueMinutes(10))
+									.execute().actionGet();
+	
+							if (result.getHits().hits().length == 0) {
+								break;
+							}
+							
+	
+							for (SearchHit hit : result.getHits()) {
+								//hit.toXContent(builder, null);
+								httpStream.write(hit.getSourceAsString().getBytes());
+								httpStream.write('\n');
+							}
+							logger.info("executeDownload scrollId: " + id);
+							clear.addScrollId(id);
+							id = result.getScrollId();
+	
+						}
+						
+						httpStream.close();
+						clear.get();
+	
+					} catch (Exception e) {
+						logger.error("executeDownload error", e);
 					}
-					builder.endArray();
-					builder.endObject();
-					builder.close();
-
-					clear.get();
-
-				} catch (Exception e) {
-					logger.error("executeDownload error", e);
 				}
-			}
+	
+			}).start();
+		}else{
+			new Thread(new Runnable() {
+				@Override
+				public void run() {
 
-		}).start();
+					XContentBuilder builder;
+					ClearScrollRequestBuilder clear = client.prepareClearScroll();
+					try {
+						builder = new XContentBuilder(
+								xcontent,
+								httpStream);
 
+						builder.startObject();
+						builder.field("total", head.getHits().getTotalHits());
+
+						builder.startArray("hits");
+
+						// start scrolling, until we get not results
+
+						String id = head.getScrollId();
+						clear.addScrollId(id);
+
+						while (true) {
+
+							SearchResponse result = client.prepareSearchScroll(id)
+									.setScroll(TimeValue.timeValueMinutes(10))
+									.execute().actionGet();
+
+							if (result.getHits().hits().length == 0) {
+								break;
+							}
+							
+
+							for (SearchHit hit : result.getHits()) {
+								hit.toXContent(builder, null);								
+							}
+							logger.info("executeDownload scrollId: " + id);
+							clear.addScrollId(id);
+							id = result.getScrollId();
+
+						}
+						
+						
+						builder.endArray();
+						builder.endObject();
+						builder.close();
+						
+						clear.get();
+
+					} catch (Exception e) {
+						logger.error("executeDownload error", e);
+					}
+				}
+
+			}).start();
+		}
 		return;
 
 	}

@@ -24,8 +24,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 import com.everdata.command.CommandException;
-import com.everdata.command.Optimizer;
-import com.everdata.command.Plan;
 import com.everdata.parser.AST_Start;
 import com.everdata.parser.CommandParser;
 import com.everdata.parser.ParseException;

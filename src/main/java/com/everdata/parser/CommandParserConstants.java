@@ -135,53 +135,55 @@ public interface CommandParserConstants {
   /** RegularExpression Id. */
   int K_COUNTORDER = 67;
   /** RegularExpression Id. */
-  int O_EQ = 68;
+  int K_CARD = 68;
   /** RegularExpression Id. */
-  int O_NEQ = 69;
+  int O_EQ = 69;
   /** RegularExpression Id. */
-  int O_GT = 70;
+  int O_NEQ = 70;
   /** RegularExpression Id. */
-  int O_GTE = 71;
+  int O_GT = 71;
   /** RegularExpression Id. */
-  int O_LT = 72;
+  int O_GTE = 72;
   /** RegularExpression Id. */
-  int O_LTE = 73;
+  int O_LT = 73;
   /** RegularExpression Id. */
-  int O_LPAREN = 74;
+  int O_LTE = 74;
   /** RegularExpression Id. */
-  int O_RPAREN = 75;
+  int O_LPAREN = 75;
   /** RegularExpression Id. */
-  int O_COMMA = 76;
+  int O_RPAREN = 76;
   /** RegularExpression Id. */
-  int O_SEMI = 77;
+  int O_COMMA = 77;
   /** RegularExpression Id. */
-  int O_QUOTE = 78;
+  int O_SEMI = 78;
   /** RegularExpression Id. */
-  int O_VERTICAL = 79;
+  int O_QUOTE = 79;
   /** RegularExpression Id. */
-  int S_CHINESE = 80;
+  int O_VERTICAL = 80;
   /** RegularExpression Id. */
-  int CJK = 81;
+  int S_CHINESE = 81;
   /** RegularExpression Id. */
-  int S_INTEGER = 82;
+  int CJK = 82;
   /** RegularExpression Id. */
-  int DIGIT = 83;
+  int S_INTEGER = 83;
   /** RegularExpression Id. */
-  int S_FLOAT = 84;
+  int DIGIT = 84;
   /** RegularExpression Id. */
-  int S_IDENTIFIER = 85;
+  int S_FLOAT = 85;
   /** RegularExpression Id. */
-  int LETTER = 86;
+  int S_IDENTIFIER = 86;
   /** RegularExpression Id. */
-  int SPECIAL_CHAR = 87;
+  int LETTER = 87;
   /** RegularExpression Id. */
-  int S_QUOTED_STRING = 88;
+  int SPECIAL_CHAR = 88;
   /** RegularExpression Id. */
-  int S_SINGLE_QUOTED_STRING = 89;
+  int S_QUOTED_STRING = 89;
   /** RegularExpression Id. */
-  int LINE_COMMENT = 90;
+  int S_SINGLE_QUOTED_STRING = 90;
   /** RegularExpression Id. */
-  int MULTI_LINE_COMMENT = 91;
+  int LINE_COMMENT = 91;
+  /** RegularExpression Id. */
+  int MULTI_LINE_COMMENT = 92;
 
   /** Lexical state. */
   int DEFAULT = 0;
@@ -256,6 +258,7 @@ public interface CommandParserConstants {
     "\"SPAN\"",
     "\"TIMESPAN\"",
     "\"COUNTORDER\"",
+    "\"CARD\"",
     "\"=\"",
     "\"!=\"",
     "\">\"",

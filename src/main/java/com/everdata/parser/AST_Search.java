@@ -103,8 +103,11 @@ public class AST_Search extends SimpleNode {
 				return QueryBuilders.prefixQuery(field, value.substring(0, value.length()-1));
 			else
 				return QueryBuilders.wildcardQuery(field, value);
-		}else if(value.equalsIgnoreCase("")){			
-			return QueryBuilders.constantScoreQuery(FilterBuilders.missingFilter(field));
+		}else if(value.equalsIgnoreCase("")){
+			
+			return QueryBuilders.boolQuery()
+					.should(QueryBuilders.termQuery(field, value))
+					.should(QueryBuilders.constantScoreQuery(FilterBuilders.missingFilter(field).nullValue(true).existence(true)));
 		}
 		
 		switch(valueType){

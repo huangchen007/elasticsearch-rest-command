@@ -8,6 +8,7 @@ public class CommandRestModule extends AbstractModule {
 	protected void configure() {
 		bind(CommandRestHandler.class).asEagerSingleton();
 		bind(JobRestHandler.class).asEagerSingleton();
+		bind(TaskRestHandler.class).asEagerSingleton();
 	}
 
 }

@@ -1,7 +1,31 @@
+v0.7.0(2014年12月2日)
+增加/_task接口和/_taskstatus/{taskid}接口，目的是可以使用spark引擎和sql语法来执行较长时间的数据计算。
+
+常用计算参数有：esTable,parTable,sql,masterAddress,memory
+常用结果集参数有：
+	默认结果集存储在es中：
+	targetIndex：默认值为index-tasks
+	targetType：默认值为type-XXXXXXXXXX
+	或者结果集存储在hdfs上：
+	targetPar：指定的hdfs地址
+	
+示例如下：
+http://localhost:9200/_task?esTable=SOURCETYPE=cdr234 APN="CMNET" AND CID =41553&masterAddress=spark://evercloud134:7077&sql=select APN from esTable&memory=1g
+
+http://localhost:9200/_task?esTable=SOURCETYPE=cdr234%20APN=%22CMNET%22%20AND%20CID%20=41553&parTable=hdfs://192.168.200.134:9000/evercloud/dnsparquetbig&masterAddress=spark://spark-work2:7077&sql=select%20domain%20from%20parTable&memory=1g
+
+
+
+v0.6.2(2014年11月9日)
+增加download2=true,导出的格式更加易于编程
+
+v0.6.1(2014年11月4日)
+修订了一个bug：当LIMIT=-1时，排序不生效
+
 v0.6.0(2014年9月18日)
 支持everdata0.5.0以上版本
 为了统一语法，统计命令导出download参数取消
-    当LIMIT参数设置为-1时，LIMIT参数的值自动替换成基数估计出来值。
+ 当LIMIT参数设置为-1时，LIMIT参数的值自动替换成基数估计出来值。
 
 v0.5.3(2014年8月1日)
 为了统一语法，取消采用(+/-)号来标示排序，启用ASC/DESC关键字来做为排序的标识。

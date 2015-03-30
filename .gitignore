@@ -4,3 +4,8 @@
 *.jar
 *.war
 *.ear
+*.zip
+*.classpath
+*.project
+*.gitignore
+*.prefs

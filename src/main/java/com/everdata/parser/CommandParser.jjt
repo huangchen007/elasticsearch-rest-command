@@ -392,7 +392,8 @@ void ByClause() #_ByIdentList : {}
 {
   <K_BY> 
   (
-  <K_EVAL><O_LPAREN> <S_QUOTED_STRING>{jjtThis.addField(token.image.substring(1, token.image.length() - 1));jjtThis.setScript();} <O_RPAREN>     
+  <K_EVAL><O_LPAREN> <S_QUOTED_STRING>{jjtThis.addField(token.image.substring(1, token.image.length() - 1));jjtThis.setScript();} <O_RPAREN>  
+  [ <K_AS> <S_IDENTIFIER> {jjtThis.setAs(token.image);} ]
   |
   <S_IDENTIFIER> {jjtThis.addField(token.image);} 
   )
@@ -402,6 +403,7 @@ void ByClause() #_ByIdentList : {}
     <O_COMMA> 
     (      
       <K_EVAL><O_LPAREN> <S_QUOTED_STRING>{jjtThis.addField(token.image.substring(1, token.image.length() - 1));jjtThis.setScript();} <O_RPAREN> 
+      [ <K_AS> <S_IDENTIFIER> {jjtThis.setAs(token.image);} ]
     |
       <S_IDENTIFIER> {jjtThis.addField(token.image);} 
     
@@ -482,8 +484,7 @@ void TermExpression() #_TermExpression :{} {
   <S_FLOAT>  
   |
   <S_IDENTIFIER>
-  /*|
-  <S_IDENTIFIER_PREFIXWITHNUM>*/) {jjtThis.type = AST_TermExpression.TERM;jjtThis.term = token.image;}  
+  ) {jjtThis.type = AST_TermExpression.TERM;jjtThis.term = token.image;}  
   |
   <S_QUOTED_STRING> {jjtThis.type = AST_TermExpression.PHRASE; jjtThis.term = token.image.substring(1, token.image.length() - 1);} 
   

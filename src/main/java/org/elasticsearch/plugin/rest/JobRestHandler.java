@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import org.elasticsearch.rest.BytesRestResponse;
@@ -19,8 +18,6 @@ import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.cache.Cache;
 import org.elasticsearch.common.cache.CacheBuilder;
-import org.elasticsearch.common.cache.CacheLoader;
-import org.elasticsearch.common.cache.LoadingCache;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentBuilder;
@@ -38,7 +35,6 @@ import com.everdata.command.Search;
 import com.everdata.command.Search.QueryResponse;
 import com.everdata.parser.AST_Start;
 import com.everdata.parser.CommandParser;
-import com.everdata.parser.ParseException;
 
 public class JobRestHandler extends BaseRestHandler {
 
@@ -48,22 +44,22 @@ public class JobRestHandler extends BaseRestHandler {
 	
 	Random ran = new Random();
 	
-	Cache<String, String> commandCache = CacheBuilder.newBuilder()
+	static Cache<String, String> commandCache = CacheBuilder.newBuilder()
 		       .maximumSize(200)
 		       .expireAfterAccess(20, TimeUnit.MINUTES)
 		       .build();
 	
-	Cache<String, Response> queryResultCache = CacheBuilder.newBuilder()
+	static Cache<String, Response> queryResultCache = CacheBuilder.newBuilder()
 		       .maximumSize(2000)
 		       .expireAfterAccess(20, TimeUnit.MINUTES)
 		       .build();
 	
-	Cache<String, Response> reportResultCache = CacheBuilder.newBuilder()
+	static Cache<String, Response> reportResultCache = CacheBuilder.newBuilder()
 		       .maximumSize(2000)
 		       .expireAfterAccess(20, TimeUnit.MINUTES)
 		       .build();
 	
-	Cache<String, Response> timelineResultCache = CacheBuilder.newBuilder()
+	static Cache<String, Response> timelineResultCache = CacheBuilder.newBuilder()
 		       .maximumSize(2000)
 		       .expireAfterAccess(20, TimeUnit.MINUTES)
 		       .build();
@@ -106,11 +102,11 @@ public class JobRestHandler extends BaseRestHandler {
 	@Inject
 	public JobRestHandler(Settings settings, Client client,
 			RestController controller) {
-		super(settings, client);
+		super(settings, controller, client);
 		controller.registerHandler(GET, "/_commandjob", this);
 		controller.registerHandler(POST, "/_commandjob", this);
 		controller.registerHandler(GET, "/jobs/{jobid}/{type}", this);
-		controller.registerHandler(GET, "/jobs/{jobid}/{type}", this);
+		controller.registerHandler(POST, "/jobs/{jobid}/{type}", this);
 	}
 	
 	private String getCommandStringFromRestRequest(final RestRequest request) throws CommandException{

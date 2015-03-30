@@ -8,7 +8,8 @@ import java.util.HashSet;
 public class AST_ByIdentList extends SimpleNode {
 
 	public static class By {
-		public String name;
+		public String as = null;
+		public String name = null;
 		public boolean keyorder = true;
 		public boolean desc = true;
 		public boolean script = false;
@@ -41,6 +42,10 @@ public class AST_ByIdentList extends SimpleNode {
 	
 	public void setScript() {
 		byList.get(byList.size() - 1).script = true;
+	}
+	
+	public void setAs(String as){
+		byList.get(byList.size() - 1).as = as;
 	}
 
 }

@@ -39,15 +39,16 @@ public class CommandRestHandler extends BaseRestHandler {
 	@Inject
 	public CommandRestHandler(Settings settings, Client client,
 			RestController controller) {
-		super(settings, client);
+		super(settings, controller, client);
 		controller.registerHandler(GET, "/_command", this);
 		controller.registerHandler(POST, "/_command", this);
 	}
 
 	@Override
 	public void handleRequest(RestRequest request, final RestChannel channel, Client client) {
-
+		
 		String command = "";
+		
 		if (request.method() == RestRequest.Method.GET)
 			command = request.param("q", "");
 		else {
@@ -71,6 +72,7 @@ public class CommandRestHandler extends BaseRestHandler {
 		final int size = request.paramAsInt("size", 10);
 		final String format = request.param("format", "json");
 		final boolean download = request.paramAsBoolean("download", false);
+		final boolean download2 = request.paramAsBoolean("download2", false);
 		final boolean showMeta = request.paramAsBoolean("showMeta", true);
 
 		XContent xContent = XContentType.JSON.xContent();
@@ -113,8 +115,8 @@ public class CommandRestHandler extends BaseRestHandler {
 		}
 
 		if (request.paramAsBoolean("query", true)) {
-			if (download) {
-
+			if (download || download2) {
+				
 				search.executeDownload(new OutputStream() {
 					byte[] innerBuffer = new byte[1200];
 					int idx = 0;
@@ -138,7 +140,7 @@ public class CommandRestHandler extends BaseRestHandler {
 							channel.sendContinuousBytes(null, 0, 0, true);
 					}
 
-				}, xContent);
+				}, xContent, download2);
 
 			} else if (search.joinSearchs.size() > 0) {
 
