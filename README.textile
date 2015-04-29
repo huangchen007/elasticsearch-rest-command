@@ -1,3 +1,5 @@
+[语法详情请查看rest-command.ppt]
+
 v0.7.0(2014年12月2日)
 增加/_task接口和/_taskstatus/{taskid}接口，目的是可以使用spark引擎和sql语法来执行较长时间的数据计算。
 
