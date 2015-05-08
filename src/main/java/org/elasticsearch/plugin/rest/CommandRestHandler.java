@@ -125,19 +125,22 @@ public class CommandRestHandler extends BaseRestHandler {
 					public void write(int b) throws IOException {
 						innerBuffer[idx++] = (byte) b;
 						if (idx == innerBuffer.length) {
+							/*
 							channel.sendContinuousBytes(innerBuffer, 0, idx,
 									false);
+							*/
 							idx = 0;
 						}
 					}
 
 					@Override
 					public void close() throws IOException {
+						/*
 						if (idx > 0)
-							channel.sendContinuousBytes(innerBuffer, 0, idx,
-									true);
+							channel.sendContinuousBytes(innerBuffer, 0, idx, true);
 						else
 							channel.sendContinuousBytes(null, 0, 0, true);
+							*/
 					}
 
 				}, xContent, download2);

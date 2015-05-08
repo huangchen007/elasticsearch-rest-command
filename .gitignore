@@ -9,3 +9,6 @@
 *.project
 *.gitignore
 *.prefs
+/lib
+/bin
+/data
