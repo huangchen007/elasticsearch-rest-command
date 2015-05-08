@@ -1,3 +1,6 @@
+##elasticsearch-rest-command
+Restful pipeline command support plugin for Elasticsearch http://www.elasticsearch.org
+
 ##语法详情请查看rest-command.ppt
 
 v0.7.0(2014年12月2日)
