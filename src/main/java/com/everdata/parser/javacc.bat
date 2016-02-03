@@ -1,0 +1,1 @@
+java -cp ..\..\..\..\..\..\lib\javacc.jar javacc -STATIC=false %1 %2
